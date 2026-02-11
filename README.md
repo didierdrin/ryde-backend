@@ -37,6 +37,22 @@ The backend is configured to use **Neon PostgreSQL**:
 - SSL is required and configured
 - Connection pooling is enabled
 
+## API Documentation
+
+Interactive API documentation is available via Swagger UI:
+
+**Local Development:**
+```
+http://localhost:3000/api-docs
+```
+
+**Production:**
+```
+https://ryde-backend-production.up.railway.app/api-docs
+```
+
+See [SWAGGER_GUIDE.md](./SWAGGER_GUIDE.md) for detailed usage instructions.
+
 ## API Endpoints
 
 ### Authentication
@@ -106,6 +122,20 @@ The complete database schema is defined in `migrations/001_create_tables.sql`. K
 - `subscriptions` - Driver subscriptions
 - `administrators` - Admin accounts
 
+## API Documentation (Swagger)
+
+Interactive API documentation is available at:
+- **Local**: `http://localhost:3000/api-docs`
+- **Production**: `https://ryde-backend-production.up.railway.app/api-docs`
+
+Features:
+- Test all endpoints directly from the browser
+- View request/response schemas
+- Authenticate with JWT tokens
+- Export OpenAPI specification
+
+See `SWAGGER_GUIDE.md` for detailed usage instructions.
+
 ## Testing
 
 1. Test database connection:
@@ -116,6 +146,12 @@ npm run test-db
 2. Test API health:
 ```bash
 curl http://localhost:3000/api/health
+```
+
+3. View API documentation:
+```bash
+# Open in browser
+http://localhost:3000/api-docs
 ```
 
 3. Test registration:
