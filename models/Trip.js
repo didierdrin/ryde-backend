@@ -100,23 +100,27 @@ class Trip {
 
   static async findRequestedTrips(latitude, longitude, radius = 10) {
     const result = await pool.query(
-      `SELECT t.*, 
-        p.user_id as passenger_user_id,
-        u1.name as passenger_name,
-        u1.phone_number as passenger_phone,
-        (6371 * acos(
-          cos(radians($1)) * cos(radians(t.pickup_latitude)) *
-          cos(radians(t.pickup_longitude) - radians($2)) +
-          sin(radians($1)) * sin(radians(t.pickup_latitude))
-        )) AS distance
-       FROM trips t
-       JOIN passengers p ON t.passenger_id = p.passenger_id
-       JOIN users u1 ON p.user_id = u1.user_id
-       WHERE t.status = 'REQUESTED'
-         AND t.pickup_latitude IS NOT NULL
-         AND t.pickup_longitude IS NOT NULL
-       HAVING distance <= $3
-       ORDER BY distance, t.request_time
+      `SELECT * FROM (
+        SELECT t.*,
+          p.user_id as passenger_user_id,
+          u1.name as passenger_name,
+          u1.phone_number as passenger_phone,
+          (6371 * acos(
+            LEAST(1, GREATEST(-1,
+              cos(radians($1)) * cos(radians(t.pickup_latitude)) *
+              cos(radians(t.pickup_longitude) - radians($2)) +
+              sin(radians($1)) * sin(radians(t.pickup_latitude))
+            ))
+          )) AS driver_distance
+         FROM trips t
+         JOIN passengers p ON t.passenger_id = p.passenger_id
+         JOIN users u1 ON p.user_id = u1.user_id
+         WHERE t.status = 'REQUESTED'
+           AND t.pickup_latitude IS NOT NULL
+           AND t.pickup_longitude IS NOT NULL
+      ) sub
+       WHERE sub.driver_distance <= $3
+       ORDER BY sub.driver_distance, sub.request_time
        LIMIT 20`,
       [latitude, longitude, radius]
     );

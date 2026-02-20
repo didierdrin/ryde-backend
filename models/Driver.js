@@ -45,22 +45,26 @@ class Driver {
   }
 
   static async findAvailableDrivers(latitude, longitude, radius = 5) {
-    // Simple distance calculation (Haversine formula approximation)
+    // Haversine distance in a subquery so we can filter by distance (PostgreSQL does not allow SELECT alias in HAVING)
     const result = await pool.query(
-      `SELECT d.*, u.name, u.email, u.phone_number,
-        (6371 * acos(
-          cos(radians($1)) * cos(radians(d.current_latitude)) *
-          cos(radians(d.current_longitude) - radians($2)) +
-          sin(radians($1)) * sin(radians(d.current_latitude))
-        )) AS distance
-       FROM drivers d
-       JOIN users u ON d.user_id = u.user_id
-       WHERE d.is_available = TRUE 
-         AND d.verification_status = 'APPROVED'
-         AND d.current_latitude IS NOT NULL
-         AND d.current_longitude IS NOT NULL
-       HAVING distance <= $3
-       ORDER BY distance
+      `SELECT * FROM (
+        SELECT d.*, u.name, u.email, u.phone_number,
+          (6371 * acos(
+            LEAST(1, GREATEST(-1,
+              cos(radians($1)) * cos(radians(d.current_latitude)) *
+              cos(radians(d.current_longitude) - radians($2)) +
+              sin(radians($1)) * sin(radians(d.current_latitude))
+            ))
+          )) AS distance
+         FROM drivers d
+         JOIN users u ON d.user_id = u.user_id
+         WHERE d.is_available = TRUE
+           AND d.verification_status = 'APPROVED'
+           AND d.current_latitude IS NOT NULL
+           AND d.current_longitude IS NOT NULL
+      ) sub
+       WHERE sub.distance <= $3
+       ORDER BY sub.distance
        LIMIT 10`,
       [latitude, longitude, radius]
     );

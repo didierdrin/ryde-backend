@@ -46,14 +46,18 @@ exports.requestTrip = async (req, res) => {
       paymentStatus: 'PENDING'
     });
 
-    // Notify nearby drivers
-    const nearbyDrivers = await Driver.findAvailableDrivers(pickupLatitude, pickupLongitude);
-    for (const driver of nearbyDrivers) {
-      await Notification.create(driver.user_id, {
-        title: 'New Trip Request',
-        message: `A passenger has requested a trip from ${pickupAddress}`,
-        notificationType: 'TRIP_REQUEST'
-      });
+    // Notify nearby drivers (non-blocking: do not fail the request if notify fails)
+    try {
+      const nearbyDrivers = await Driver.findAvailableDrivers(pickupLatitude, pickupLongitude);
+      for (const driver of nearbyDrivers) {
+        await Notification.create(driver.user_id, {
+          title: 'New Trip Request',
+          message: `A passenger has requested a trip from ${pickupAddress}`,
+          notificationType: 'TRIP_REQUEST'
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Notify drivers error (trip still created):', notifyErr);
     }
 
     res.status(201).json({ message: 'Trip requested successfully', trip });
