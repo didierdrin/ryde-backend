@@ -16,6 +16,7 @@ var tripsRouter = require('./routes/trips');
 var paymentsRouter = require('./routes/payments');
 var notificationsRouter = require('./routes/notifications');
 var ratingsRouter = require('./routes/ratings');
+var chatsRouter = require('./routes/chats');
 
 var app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/trips', tripsRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/ratings', ratingsRouter);
+app.use('/api/chats', chatsRouter);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

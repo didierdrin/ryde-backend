@@ -238,3 +238,14 @@ CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
 DROP TRIGGER IF EXISTS update_administrators_updated_at ON administrators;
 CREATE TRIGGER update_administrators_updated_at BEFORE UPDATE ON administrators
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Chat: one conversation per trip (driver-passenger messages)
+CREATE TABLE IF NOT EXISTS chat_messages (
+    message_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
+    trip_id VARCHAR(36) NOT NULL REFERENCES trips(trip_id) ON DELETE CASCADE,
+    sender_id VARCHAR(36) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_trip ON chat_messages(trip_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at);
