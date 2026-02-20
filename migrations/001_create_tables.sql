@@ -236,5 +236,5 @@ CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_administrators_updated_at ON administrators;
-CREATE TRIGGER update_administrators_updated_at ON administrators
+CREATE TRIGGER update_administrators_updated_at BEFORE UPDATE ON administrators
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
