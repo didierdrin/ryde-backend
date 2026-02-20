@@ -1,24 +1,24 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create ENUM types
-CREATE TYPE user_type_enum AS ENUM ('PASSENGER', 'DRIVER', 'ADMIN');
-CREATE TYPE trip_status_enum AS ENUM ('REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
-CREATE TYPE payment_method_enum AS ENUM ('MTN_MOMO', 'AIRTEL_MONEY', 'CASH');
-CREATE TYPE payment_status_enum AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
-CREATE TYPE verification_status_enum AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
-CREATE TYPE vehicle_type_enum AS ENUM ('SEDAN', 'SUV', 'MOTORCYCLE');
-CREATE TYPE notification_type_enum AS ENUM ('TRIP_REQUEST', 'TRIP_ACCEPTED', 'TRIP_COMPLETED', 'PAYMENT_RECEIVED', 'SYSTEM');
-CREATE TYPE document_type_enum AS ENUM ('LICENSE', 'INSURANCE', 'REGISTRATION', 'IDENTITY');
-CREATE TYPE rating_type_enum AS ENUM ('PASSENGER_TO_DRIVER', 'DRIVER_TO_PASSENGER');
-CREATE TYPE subscription_tier_enum AS ENUM ('BASIC', 'PREMIUM', 'ENTERPRISE');
-CREATE TYPE admin_role_enum AS ENUM ('SUPER_ADMIN', 'ADMIN', 'MODERATOR');
+-- Create ENUM types (idempotent)
+DO $$ BEGIN CREATE TYPE user_type_enum AS ENUM ('PASSENGER', 'DRIVER', 'ADMIN'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE trip_status_enum AS ENUM ('REQUESTED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE payment_method_enum AS ENUM ('MTN_MOMO', 'AIRTEL_MONEY', 'CASH'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE payment_status_enum AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE verification_status_enum AS ENUM ('PENDING', 'APPROVED', 'REJECTED'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE vehicle_type_enum AS ENUM ('SEDAN', 'SUV', 'MOTORCYCLE'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE notification_type_enum AS ENUM ('TRIP_REQUEST', 'TRIP_ACCEPTED', 'TRIP_COMPLETED', 'PAYMENT_RECEIVED', 'SYSTEM'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE document_type_enum AS ENUM ('LICENSE', 'INSURANCE', 'REGISTRATION', 'IDENTITY'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE rating_type_enum AS ENUM ('PASSENGER_TO_DRIVER', 'DRIVER_TO_PASSENGER'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE subscription_tier_enum AS ENUM ('BASIC', 'PREMIUM', 'ENTERPRISE'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE admin_role_enum AS ENUM ('SUPER_ADMIN', 'ADMIN', 'MODERATOR'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- Users Table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
-    name VARCHAR(20) NOT NULL,
-    email VARCHAR(20) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
     phone_number VARCHAR(15) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     user_type user_type_enum NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE users (
 );
 
 -- Passengers Table
-CREATE TABLE passengers (
+CREATE TABLE IF NOT EXISTS passengers (
     passenger_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     user_id VARCHAR(36) UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     current_latitude DECIMAL(10,8),
@@ -44,7 +44,7 @@ CREATE TABLE passengers (
 );
 
 -- Drivers Table
-CREATE TABLE drivers (
+CREATE TABLE IF NOT EXISTS drivers (
     driver_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     user_id VARCHAR(36) UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     license_number VARCHAR(20) UNIQUE NOT NULL,
@@ -60,13 +60,13 @@ CREATE TABLE drivers (
 );
 
 -- Vehicles Table
-CREATE TABLE vehicles (
+CREATE TABLE IF NOT EXISTS vehicles (
     vehicle_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     driver_id VARCHAR(36) UNIQUE NOT NULL REFERENCES drivers(driver_id) ON DELETE CASCADE,
-    registration_number VARCHAR(10) UNIQUE NOT NULL,
+    registration_number VARCHAR(20) UNIQUE NOT NULL,
     make VARCHAR(20) NOT NULL,
     model VARCHAR(20) NOT NULL,
-    year INTEGER NOT NULL CHECK (year >= 2000 AND year <= 2025),
+    year INTEGER NOT NULL CHECK (year >= 2000 AND year <= 2030),
     color VARCHAR(15) NOT NULL,
     vehicle_type vehicle_type_enum NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -74,7 +74,7 @@ CREATE TABLE vehicles (
 );
 
 -- Trips Table
-CREATE TABLE trips (
+CREATE TABLE IF NOT EXISTS trips (
     trip_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     passenger_id VARCHAR(36) NOT NULL REFERENCES passengers(passenger_id) ON DELETE CASCADE,
     driver_id VARCHAR(36) REFERENCES drivers(driver_id) ON DELETE SET NULL,
@@ -95,13 +95,13 @@ CREATE TABLE trips (
 );
 
 -- Payments Table
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     payment_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     trip_id VARCHAR(36) UNIQUE NOT NULL REFERENCES trips(trip_id) ON DELETE CASCADE,
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     payment_method payment_method_enum NOT NULL,
     payment_status payment_status_enum NOT NULL DEFAULT 'PENDING',
-    transaction_ref VARCHAR(20) UNIQUE,
+    transaction_ref VARCHAR(100) UNIQUE,
     payment_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     commission DECIMAL(10,2) NOT NULL CHECK (commission >= 0),
     driver_earnings DECIMAL(10,2) NOT NULL CHECK (driver_earnings >= 0),
@@ -110,7 +110,7 @@ CREATE TABLE payments (
 );
 
 -- Notifications Table
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     notification_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     user_id VARCHAR(36) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
@@ -124,7 +124,7 @@ CREATE TABLE notifications (
 );
 
 -- Documents Table
-CREATE TABLE documents (
+CREATE TABLE IF NOT EXISTS documents (
     document_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     driver_id VARCHAR(36) NOT NULL REFERENCES drivers(driver_id) ON DELETE CASCADE,
     document_type document_type_enum NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE documents (
 );
 
 -- Ratings Table
-CREATE TABLE ratings (
+CREATE TABLE IF NOT EXISTS ratings (
     rating_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     trip_id VARCHAR(36) NOT NULL REFERENCES trips(trip_id) ON DELETE CASCADE,
     rated_by_user_id VARCHAR(36) NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
@@ -152,7 +152,7 @@ CREATE TABLE ratings (
 );
 
 -- Subscriptions Table
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
     subscription_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     driver_id VARCHAR(36) NOT NULL REFERENCES drivers(driver_id) ON DELETE CASCADE,
     tier subscription_tier_enum NOT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE subscriptions (
 );
 
 -- Administrators Table
-CREATE TABLE administrators (
+CREATE TABLE IF NOT EXISTS administrators (
     admin_id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::VARCHAR,
     user_id VARCHAR(36) UNIQUE NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     role admin_role_enum NOT NULL,
@@ -176,22 +176,22 @@ CREATE TABLE administrators (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_phone ON users(phone_number);
-CREATE INDEX idx_passengers_user_id ON passengers(user_id);
-CREATE INDEX idx_drivers_user_id ON drivers(user_id);
-CREATE INDEX idx_drivers_available ON drivers(is_available);
-CREATE INDEX idx_vehicles_driver_id ON vehicles(driver_id);
-CREATE INDEX idx_trips_passenger_id ON trips(passenger_id);
-CREATE INDEX idx_trips_driver_id ON trips(driver_id);
-CREATE INDEX idx_trips_status ON trips(status);
-CREATE INDEX idx_payments_trip_id ON payments(trip_id);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_is_read ON notifications(is_read);
-CREATE INDEX idx_documents_driver_id ON documents(driver_id);
-CREATE INDEX idx_ratings_trip_id ON ratings(trip_id);
-CREATE INDEX idx_subscriptions_driver_id ON subscriptions(driver_id);
-CREATE INDEX idx_subscriptions_is_active ON subscriptions(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number);
+CREATE INDEX IF NOT EXISTS idx_passengers_user_id ON passengers(user_id);
+CREATE INDEX IF NOT EXISTS idx_drivers_user_id ON drivers(user_id);
+CREATE INDEX IF NOT EXISTS idx_drivers_available ON drivers(is_available);
+CREATE INDEX IF NOT EXISTS idx_vehicles_driver_id ON vehicles(driver_id);
+CREATE INDEX IF NOT EXISTS idx_trips_passenger_id ON trips(passenger_id);
+CREATE INDEX IF NOT EXISTS idx_trips_driver_id ON trips(driver_id);
+CREATE INDEX IF NOT EXISTS idx_trips_status ON trips(status);
+CREATE INDEX IF NOT EXISTS idx_payments_trip_id ON payments(trip_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_documents_driver_id ON documents(driver_id);
+CREATE INDEX IF NOT EXISTS idx_ratings_trip_id ON ratings(trip_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_driver_id ON subscriptions(driver_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_is_active ON subscriptions(is_active);
 
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -202,30 +202,39 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at
+-- Create triggers for updated_at (idempotent: drop then create)
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_passengers_updated_at ON passengers;
 CREATE TRIGGER update_passengers_updated_at BEFORE UPDATE ON passengers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_drivers_updated_at ON drivers;
 CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON drivers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_vehicles_updated_at ON vehicles;
 CREATE TRIGGER update_vehicles_updated_at BEFORE UPDATE ON vehicles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_documents_updated_at ON documents;
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_ratings_updated_at ON ratings;
 CREATE TRIGGER update_ratings_updated_at BEFORE UPDATE ON ratings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER update_subscriptions_updated_at BEFORE UPDATE ON subscriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_administrators_updated_at BEFORE UPDATE ON administrators
+DROP TRIGGER IF EXISTS update_administrators_updated_at ON administrators;
+CREATE TRIGGER update_administrators_updated_at ON administrators
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
