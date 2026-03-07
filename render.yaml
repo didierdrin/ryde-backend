@@ -1,0 +1,8 @@
+# Render Blueprint - use correct build/start so "Build command" is not just "npm"
+# See: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: ryde-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
