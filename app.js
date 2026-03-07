@@ -20,10 +20,11 @@ var chatsRouter = require('./routes/chats');
 
 var app = express();
 
-// Define allowed origins
+// CORS configuration for Render (and Railway/Vercel frontend)
 var allowedOrigins = [
   'https://ryde-web.vercel.app',
-  'http://localhost:3000' // Add this for local development
+  'http://localhost:3000',
+  'http://localhost:3001'
 ];
 
 // Add origins from environment variable
@@ -35,50 +36,23 @@ envOrigins.forEach(function(o) {
   if (allowedOrigins.indexOf(o) === -1) allowedOrigins.push(o);
 });
 
-// Configure CORS properly - REMOVE the custom middleware above and just use this
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc)
+    // Allow requests with no origin (like mobile apps, curl)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
-      // In production, you might want to reject non-allowed origins
-      // For now, let's allow all origins but log a warning
-      console.warn('Origin ' + origin + ' not in allowed list, but allowing anyway');
-      callback(null, true);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Length', 'X-Requested-With'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 200
 }));
 
-// Additional middleware to ensure CORS headers are set for all responses
-app.use(function(req, res, next) {
-  var origin = req.headers.origin;
-  if (origin && allowedOrigins.indexOf(origin) !== -1) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (origin) {
-    // If origin not in allowed list but we want to allow it anyway
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
+// Handle preflight requests
+app.options('*', cors());
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -147,3 +121,11 @@ app.use(function(err, req, res, next) {
 });
 
 module.exports = app;
+
+// Render: listen when run directly (e.g. start command: node app.js)
+if (require.main === module) {
+  var PORT = process.env.PORT || 3000;
+  app.listen(PORT, '0.0.0.0', function() {
+    console.log('Server running on port ' + PORT);
+  });
+}
