@@ -20,9 +20,9 @@ var chatsRouter = require('./routes/chats');
 
 var app = express();
 
-// CORS configuration
+// CORS configuration - hardcoded for Vercel frontend
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : '*',
+  origin: 'https://ryde-web.vercel.app',
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -86,8 +86,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    timestamp: new Date().toISOString(),
-    corsOrigin: process.env.CORS_ORIGIN || 'not set'
+    timestamp: new Date().toISOString()
   });
 });
 
