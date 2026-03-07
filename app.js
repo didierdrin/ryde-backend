@@ -20,27 +20,18 @@ var chatsRouter = require('./routes/chats');
 
 var app = express();
 
-// CORS - Must be first. Explicit OPTIONS handler so preflight always gets headers (works behind proxies).
+// CORS - Must be first middleware
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  res.set('Access-Control-Allow-Origin', origin || '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.set('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    return res.sendStatus(200);
   }
   next();
 });
-// Also use cors package for non-OPTIONS requests
-app.use(cors({
-  origin: true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  optionsSuccessStatus: 204,
-  preflightContinue: true // we already handled OPTIONS above
-}));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
