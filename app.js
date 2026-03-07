@@ -20,18 +20,26 @@ var chatsRouter = require('./routes/chats');
 
 var app = express();
 
-// CORS - Must be first middleware
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// CORS - Must be first middleware. Use explicit origins when credentials are true.
+var allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(function(s) { return s.trim(); })
+  .filter(Boolean);
+if (allowedOrigins.indexOf('https://ryde-web.vercel.app') === -1) {
+  allowedOrigins.push('https://ryde-web.vercel.app');
+}
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200
+}));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -94,8 +102,15 @@ app.use(function(req, res, next) {
   next(createError(404));
 });
 
-// error handler
+// error handler - set CORS on error responses so browser receives valid CORS headers
 app.use(function(err, req, res, next) {
+  var origin = req.headers.origin;
+  var allowed = allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production';
+  if (origin && allowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
