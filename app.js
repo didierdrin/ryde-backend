@@ -84,7 +84,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
  *                   format: date-time
  */
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    corsOrigin: process.env.CORS_ORIGIN || 'not set'
+  });
 });
 
 // catch 404 and forward to error handler
