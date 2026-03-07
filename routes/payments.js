@@ -35,6 +35,30 @@ router.get('/trip/:tripId', authenticateToken, paymentController.getPaymentByTri
 
 /**
  * @swagger
+ * /api/payments/{paymentId}/create-invoice:
+ *   post:
+ *     summary: Create IremboPay invoice for a payment (via mozypizza-be)
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Invoice created; returns invoiceNumber for IremboPay.initiate()
+ *       404:
+ *         description: Payment not found
+ *       502:
+ *         description: Payment gateway error
+ */
+router.post('/:paymentId/create-invoice', authenticateToken, paymentController.createInvoice);
+
+/**
+ * @swagger
  * /api/payments/{paymentId}/complete:
  *   post:
  *     summary: Complete a payment
