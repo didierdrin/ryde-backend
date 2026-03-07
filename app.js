@@ -20,18 +20,27 @@ var chatsRouter = require('./routes/chats');
 
 var app = express();
 
-// CORS configuration - hardcoded for Vercel frontend
+// CORS configuration with function-based origin check
 const corsOptions = {
-  origin: 'https://ryde-web.vercel.app',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = ['https://ryde-web.vercel.app', 'http://localhost:3000', 'http://localhost:3001'];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now to debug
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['Content-Length', 'X-Request-Id']
 };
 app.use(cors(corsOptions));
-
-// Handle preflight requests
 app.options('*', cors(corsOptions));
 
 // view engine setup
