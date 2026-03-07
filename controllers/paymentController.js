@@ -99,6 +99,76 @@ exports.createInvoice = async (req, res) => {
   }
 };
 
+/**
+ * Create IremboPay invoice for an arbitrary amount (e.g. rentals, subscriptions).
+ * Uses authenticated user for customer details. No payment record stored in Ryde DB.
+ */
+exports.createInvoiceForAmount = async (req, res) => {
+  try {
+    const { amount: amountParam, address } = req.body;
+    const amount = Number(amountParam);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Valid amount is required' });
+    }
+
+    const baseUrl = (process.env.MOZYPIZZA_API_URL || 'https://mozypizza-be-production.up.railway.app/api').replace(/\/$/, '');
+    const productId = process.env.MOZYPIZZA_PRODUCT_ID;
+    const unitPrice = Number(process.env.MOZYPIZZA_PRODUCT_UNIT_PRICE) || 1;
+
+    if (!productId) {
+      return res.status(500).json({ error: 'IremboPay not configured (MOZYPIZZA_PRODUCT_ID)' });
+    }
+
+    const quantity = Math.max(1, Math.round(amount / unitPrice));
+
+    let userEmail = 'customer@ryde.com';
+    let userName = 'Valued Customer';
+    let userPhone = '0780000000';
+    const user = await User.findById(req.user.userId);
+    if (user) {
+      userEmail = user.email || userEmail;
+      userName = user.name || userName;
+      if (user.phone_number) userPhone = String(user.phone_number).trim();
+    }
+
+    const phoneDigits = userPhone.replace(/\D/g, '').replace(/^0/, '').slice(-9);
+    const orderPayload = {
+      items: [{ productId: Number(productId), quantity }],
+      address: (address && String(address).trim()) || 'Kigali',
+      phoneNumber: phoneDigits.length >= 9 ? phoneDigits : userPhone.replace(/\D/g, ''),
+      paymentType: 'online',
+    };
+
+    const orderResponse = await axios.post(`${baseUrl}/orders`, orderPayload, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 15000,
+    });
+
+    const data = orderResponse.data;
+    const invoiceNumber = data?.invoiceNumber ?? data?.data?.invoiceNumber;
+    if (!invoiceNumber) {
+      console.error('Mozypizza order response:', orderResponse.data);
+      return res.status(502).json({ error: 'Could not get payment invoice from gateway' });
+    }
+
+    res.json({ invoiceNumber });
+  } catch (error) {
+    const status = error.response?.status;
+    const data = error.response?.data;
+    console.error('Create invoice for amount error:', error.message, data || '');
+    if (status === 401) {
+      return res.status(502).json({ error: 'Payment gateway authentication failed' });
+    }
+    if (status === 403) {
+      return res.status(502).json({ error: 'Payment gateway rejected request' });
+    }
+    if (status >= 400 && status < 500) {
+      return res.status(502).json({ error: data?.message || 'Payment gateway error' });
+    }
+    res.status(500).json({ error: 'Failed to create payment invoice', details: error.message });
+  }
+};
+
 exports.completePayment = async (req, res) => {
   try {
     const { transactionRef } = req.body;

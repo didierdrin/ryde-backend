@@ -35,6 +35,31 @@ router.get('/trip/:tripId', authenticateToken, paymentController.getPaymentByTri
 
 /**
  * @swagger
+ * /api/payments/create-invoice-for-amount:
+ *   post:
+ *     summary: Create IremboPay invoice for an arbitrary amount (rentals, etc.)
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [amount]
+ *             properties:
+ *               amount: { type: number, description: 'Amount in RWF' }
+ *               address: { type: string, description: 'Optional delivery/booking address' }
+ *     responses:
+ *       200:
+ *         description: Returns invoiceNumber for IremboPay.initiate()
+ *       502:
+ *         description: Payment gateway error
+ */
+router.post('/create-invoice-for-amount', authenticateToken, paymentController.createInvoiceForAmount);
+
+/**
+ * @swagger
  * /api/payments/{paymentId}/create-invoice:
  *   post:
  *     summary: Create IremboPay invoice for a payment (via mozypizza-be)
