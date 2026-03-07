@@ -39,11 +39,11 @@ exports.createInvoice = async (req, res) => {
     }
 
     const baseUrl = (process.env.MOZYPIZZA_API_URL || 'https://mozypizza-be-production.up.railway.app/api').replace(/\/$/, '');
-    const productId = process.env.MOZYPIZZA_PRODUCT_ID;
+    const productId = String(process.env.MOZYPIZZA_PRODUCT_ID || '').trim();
     const unitPrice = Number(process.env.MOZYPIZZA_PRODUCT_UNIT_PRICE) || 1;
 
     if (!productId) {
-      return res.status(500).json({ error: 'IremboPay not configured (MOZYPIZZA_PRODUCT_ID)' });
+      return res.status(500).json({ error: 'IremboPay not configured: set MOZYPIZZA_PRODUCT_ID (e.g. PC-b3d751e2fb)' });
     }
 
     const amount = Number(payment.amount);
@@ -63,7 +63,7 @@ exports.createInvoice = async (req, res) => {
 
     const phoneDigits = userPhone.replace(/\D/g, '').replace(/^0/, '').slice(-9);
     const orderPayload = {
-      items: [{ productId: Number(productId), quantity }],
+      items: [{ productId, quantity }],
       address: (trip.pickup_address || trip.destination_address || 'Kigali').trim(),
       phoneNumber: phoneDigits.length >= 9 ? phoneDigits : userPhone.replace(/\D/g, ''),
       paymentType: 'online',
@@ -93,7 +93,8 @@ exports.createInvoice = async (req, res) => {
       return res.status(502).json({ error: 'Payment gateway rejected request' });
     }
     if (status >= 400 && status < 500) {
-      return res.status(502).json({ error: data?.message || 'Payment gateway error' });
+      const msg = Array.isArray(data?.message) ? data.message.join(' ') : (data?.message || 'Payment gateway error');
+      return res.status(502).json({ error: msg });
     }
     res.status(500).json({ error: 'Failed to create payment invoice', details: error.message });
   }
@@ -112,11 +113,11 @@ exports.createInvoiceForAmount = async (req, res) => {
     }
 
     const baseUrl = (process.env.MOZYPIZZA_API_URL || 'https://mozypizza-be-production.up.railway.app/api').replace(/\/$/, '');
-    const productId = process.env.MOZYPIZZA_PRODUCT_ID;
+    const productId = String(process.env.MOZYPIZZA_PRODUCT_ID || '').trim();
     const unitPrice = Number(process.env.MOZYPIZZA_PRODUCT_UNIT_PRICE) || 1;
 
     if (!productId) {
-      return res.status(500).json({ error: 'IremboPay not configured (MOZYPIZZA_PRODUCT_ID)' });
+      return res.status(500).json({ error: 'IremboPay not configured: set MOZYPIZZA_PRODUCT_ID (e.g. PC-b3d751e2fb)' });
     }
 
     const quantity = Math.max(1, Math.round(amount / unitPrice));
@@ -133,7 +134,7 @@ exports.createInvoiceForAmount = async (req, res) => {
 
     const phoneDigits = userPhone.replace(/\D/g, '').replace(/^0/, '').slice(-9);
     const orderPayload = {
-      items: [{ productId: Number(productId), quantity }],
+      items: [{ productId, quantity }],
       address: (address && String(address).trim()) || 'Kigali',
       phoneNumber: phoneDigits.length >= 9 ? phoneDigits : userPhone.replace(/\D/g, ''),
       paymentType: 'online',
@@ -163,7 +164,8 @@ exports.createInvoiceForAmount = async (req, res) => {
       return res.status(502).json({ error: 'Payment gateway rejected request' });
     }
     if (status >= 400 && status < 500) {
-      return res.status(502).json({ error: data?.message || 'Payment gateway error' });
+      const msg = Array.isArray(data?.message) ? data.message.join(' ') : (data?.message || 'Payment gateway error');
+      return res.status(502).json({ error: msg });
     }
     res.status(500).json({ error: 'Failed to create payment invoice', details: error.message });
   }
