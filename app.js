@@ -20,26 +20,65 @@ var chatsRouter = require('./routes/chats');
 
 var app = express();
 
-// CORS - Must be first middleware. Use explicit origins when credentials are true.
-var allowedOrigins = (process.env.CORS_ORIGIN || '')
+// Define allowed origins
+var allowedOrigins = [
+  'https://ryde-web.vercel.app',
+  'http://localhost:3000' // Add this for local development
+];
+
+// Add origins from environment variable
+var envOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(function(s) { return s.trim(); })
   .filter(Boolean);
-if (allowedOrigins.indexOf('https://ryde-web.vercel.app') === -1) {
-  allowedOrigins.push('https://ryde-web.vercel.app');
-}
+envOrigins.forEach(function(o) {
+  if (allowedOrigins.indexOf(o) === -1) allowedOrigins.push(o);
+});
+
+// Configure CORS properly - REMOVE the custom middleware above and just use this
 app.use(cors({
   origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
-    if (process.env.NODE_ENV !== 'production') return callback(null, true);
-    return callback(null, false);
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // In production, you might want to reject non-allowed origins
+      // For now, let's allow all origins but log a warning
+      console.warn('Origin ' + origin + ' not in allowed list, but allowing anyway');
+      callback(null, true);
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  optionsSuccessStatus: 200
+  exposedHeaders: ['Content-Length', 'X-Requested-With'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
+
+// Additional middleware to ensure CORS headers are set for all responses
+app.use(function(req, res, next) {
+  var origin = req.headers.origin;
+  if (origin && allowedOrigins.indexOf(origin) !== -1) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (origin) {
+    // If origin not in allowed list but we want to allow it anyway
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -69,30 +108,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 // Health check endpoint
-/**
- * @swagger
- * /api/health:
- *   get:
- *     summary: Health check endpoint
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Server is healthy
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: OK
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- */
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString()
   });
 });
@@ -102,14 +120,14 @@ app.use(function(req, res, next) {
   next(createError(404));
 });
 
-// error handler - set CORS on error responses so browser receives valid CORS headers
+// error handler
 app.use(function(err, req, res, next) {
+  // Set CORS headers for error responses
   var origin = req.headers.origin;
-  var allowed = allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production';
-  if (origin && allowed) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   // set locals, only providing error in development
   res.locals.message = err.message;
