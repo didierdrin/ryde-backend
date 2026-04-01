@@ -22,6 +22,15 @@ var chatsRouter = require('./routes/chats');
 var app = express();
 
 // CORS configuration for Render (and Railway/Vercel frontend)
+function normalizeOriginHeader(origin) {
+  if (!origin || typeof origin !== 'string') return '';
+  try {
+    return new URL(origin).origin;
+  } catch (e) {
+    return origin.trim();
+  }
+}
+
 var allowedOrigins = [
   'https://ryde-web.vercel.app',
   'http://localhost:3000',
@@ -39,23 +48,38 @@ envOrigins.forEach(function(o) {
   if (allowedOrigins.indexOf(o) === -1) allowedOrigins.push(o);
 });
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl)
-    if (!origin) return callback(null, true);
+var allowedOriginSet = {};
+allowedOrigins.forEach(function(o) {
+  allowedOriginSet[normalizeOriginHeader(o)] = true;
+});
 
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+// Vercel production + preview deploys for this project (ryde-web*.vercel.app)
+var vercelRydePattern = /^https:\/\/ryde-web[\w.-]*\.vercel\.app$/i;
+
+var corsOptions = {
+  origin: function(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
     }
+    var normalized = normalizeOriginHeader(origin);
+    if (allowedOriginSet[normalized]) {
+      return callback(null, true);
+    }
+    if (vercelRydePattern.test(origin)) {
+      return callback(null, true);
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    return callback(null, false);
   },
   credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
-}));
+};
 
-// Handle preflight requests
-app.options('*', cors());
+app.use(cors(corsOptions));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
