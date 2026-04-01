@@ -46,6 +46,36 @@ class Payment {
     return result.rows[0];
   }
 
+  static async findByInvoiceNumber(invoiceNumber) {
+    const result = await pool.query(
+      'SELECT * FROM payments WHERE invoice_number = $1',
+      [invoiceNumber]
+    );
+    return result.rows[0];
+  }
+
+  static async setInvoiceNumber(paymentId, invoiceNumber) {
+    const result = await pool.query(
+      `UPDATE payments
+       SET invoice_number = $1, payment_method = 'IREMBO_PAY', updated_at = CURRENT_TIMESTAMP
+       WHERE payment_id = $2
+       RETURNING *`,
+      [invoiceNumber, paymentId]
+    );
+    return result.rows[0];
+  }
+
+  static async markFailed(paymentId) {
+    const result = await pool.query(
+      `UPDATE payments
+       SET payment_status = 'FAILED', updated_at = CURRENT_TIMESTAMP
+       WHERE payment_id = $1
+       RETURNING *`,
+      [paymentId]
+    );
+    return result.rows[0];
+  }
+
   static async update(paymentId, updates) {
     const fields = [];
     const values = [];

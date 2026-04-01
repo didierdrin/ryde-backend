@@ -14,6 +14,7 @@ var passengersRouter = require('./routes/passengers');
 var driversRouter = require('./routes/drivers');
 var tripsRouter = require('./routes/trips');
 var paymentsRouter = require('./routes/payments');
+var ordersRouter = require('./routes/orders');
 var notificationsRouter = require('./routes/notifications');
 var ratingsRouter = require('./routes/ratings');
 var chatsRouter = require('./routes/chats');
@@ -24,7 +25,9 @@ var app = express();
 var allowedOrigins = [
   'https://ryde-web.vercel.app',
   'http://localhost:3000',
-  'http://localhost:3001'
+  'http://localhost:3001',
+  'https://dashboard.sandbox.irembopay.com',
+  'https://dashboard.irembopay.com'
 ];
 
 // Add origins from environment variable
@@ -71,6 +74,7 @@ app.use('/api/passengers', passengersRouter);
 app.use('/api/drivers', driversRouter);
 app.use('/api/trips', tripsRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/orders', ordersRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/ratings', ratingsRouter);
 app.use('/api/chats', chatsRouter);

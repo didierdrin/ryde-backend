@@ -14,13 +14,15 @@ async function runMigrations(options = {}) {
   try {
     console.log('Starting database migrations...');
 
-    const migrationSQL = fs.readFileSync(
-      path.join(__dirname, '001_create_tables.sql'),
-      'utf8'
-    );
+    const migrationFiles = ['001_create_tables.sql', '002_irembopay.sql'];
 
     await client.query('BEGIN');
-    await client.query(migrationSQL);
+    for (const name of migrationFiles) {
+      const p = path.join(__dirname, name);
+      if (!fs.existsSync(p)) continue;
+      const migrationSQL = fs.readFileSync(p, 'utf8');
+      await client.query(migrationSQL);
+    }
     await client.query('COMMIT');
 
     console.log('✅ Database migrations completed successfully!');

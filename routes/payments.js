@@ -60,9 +60,17 @@ router.post('/create-invoice-for-amount', authenticateToken, paymentController.c
 
 /**
  * @swagger
+ * /api/payments/rental-intent/{intentId}:
+ *   get:
+ *     summary: Poll rental payment intent status (after IremboPay; webhook updates server)
+ */
+router.get('/rental-intent/:intentId', authenticateToken, paymentController.getRentalIntent);
+
+/**
+ * @swagger
  * /api/payments/{paymentId}/create-invoice:
  *   post:
- *     summary: Create IremboPay invoice for a payment (via mozypizza-be)
+ *     summary: Create IremboPay invoice for a trip payment (server-side; webhook confirms)
  *     tags: [Payments]
  *     security:
  *       - bearerAuth: []
