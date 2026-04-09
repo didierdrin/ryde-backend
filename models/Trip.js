@@ -9,9 +9,9 @@ class Trip {
       `INSERT INTO trips (
         trip_id, passenger_id, pickup_latitude, pickup_longitude, pickup_address,
         destination_latitude, destination_longitude, destination_address,
-        distance, fare, status
+        distance, fare, status, service_type
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         tripId,
@@ -24,7 +24,8 @@ class Trip {
         tripData.destinationAddress,
         tripData.distance,
         tripData.fare,
-        'REQUESTED'
+        'REQUESTED',
+        (tripData.serviceType || 'Taxi/Cab')
       ]
     );
 

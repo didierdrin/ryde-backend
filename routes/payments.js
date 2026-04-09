@@ -3,6 +3,94 @@ const router = express.Router();
 const paymentController = require('../controllers/paymentController');
 const { authenticateToken } = require('../middleware/auth');
 
+function scriptSrcForEnv(env) {
+  const e = String(env || 'sandbox').toLowerCase();
+  if (e === 'production' || e === 'prod') {
+    return 'https://dashboard.irembopay.com/assets/payment/inline.js';
+  }
+  if (e === 'checkout') {
+    return 'https://dashboard.checkout.irembopay.com/assets/payment/inline.js';
+  }
+  return 'https://dashboard.sandbox.irembopay.com/assets/payment/inline.js';
+}
+
+/**
+ * Lightweight hosted checkout page for mobile (WebView).
+ * It loads the IremboPay inline widget script and calls initiate({ invoiceNumber }).
+ *
+ * This endpoint is intentionally unauthenticated: invoiceNumber is already a single-use payment reference.
+ */
+router.get('/checkout/:invoiceNumber', (req, res) => {
+  const publicKey = process.env.IREMBOPAY_PUBLIC_KEY;
+  if (!publicKey) {
+    return res.status(500).send('IremboPay is not configured: missing IREMBOPAY_PUBLIC_KEY');
+  }
+  const invoiceNumber = String(req.params.invoiceNumber || '').trim();
+  if (!invoiceNumber) {
+    return res.status(400).send('invoiceNumber required');
+  }
+
+  const scriptSrc = scriptSrcForEnv(process.env.IREMBOPAY_ENVIRONMENT);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ryde • Pay</title>
+    <script src="${scriptSrc}"></script>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 16px; background: #f6f7fb; }
+      .card { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+      .muted { color: #6b7280; font-size: 14px; margin-top: 8px; }
+      .btn { margin-top: 12px; display: inline-block; background: #111827; color: #fff; padding: 10px 12px; border-radius: 10px; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div><strong>Pay with IremboPay</strong></div>
+      <div class="muted">Invoice: ${invoiceNumber}</div>
+      <div id="status" class="muted">Opening payment…</div>
+      <a class="btn" href="javascript:void(0)" onclick="start()">Open again</a>
+    </div>
+    <script>
+      function postResult(payload) {
+        try {
+          // For Flutter WebView (webview_flutter): message channel
+          if (window.PaymentResult && window.PaymentResult.postMessage) {
+            window.PaymentResult.postMessage(JSON.stringify(payload));
+          }
+        } catch (_) {}
+      }
+      function start() {
+        var statusEl = document.getElementById('status');
+        if (!window.IremboPay || !window.IremboPay.initiate) {
+          statusEl.textContent = 'Payment system not ready. Please refresh.';
+          postResult({ ok: false, reason: 'IREMBO_WIDGET_NOT_READY' });
+          return;
+        }
+        statusEl.textContent = 'Payment widget opened.';
+        window.IremboPay.initiate({
+          publicKey: "${publicKey}",
+          invoiceNumber: "${invoiceNumber}",
+          locale: window.IremboPay.locale ? window.IremboPay.locale.EN : "EN",
+          callback: function(err) {
+            if (!err) {
+              statusEl.textContent = 'Payment submitted. You can close this window.';
+              postResult({ ok: true });
+            } else {
+              statusEl.textContent = 'Payment cancelled or failed. You can close this window.';
+              postResult({ ok: false, reason: 'CANCELLED_OR_FAILED' });
+            }
+          }
+        });
+      }
+      setTimeout(start, 50);
+    </script>
+  </body>
+</html>`);
+});
+
 /**
  * @swagger
  * /api/payments/trip/{tripId}:

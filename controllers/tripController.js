@@ -14,7 +14,8 @@ exports.requestTrip = async (req, res) => {
       destinationLongitude,
       destinationAddress,
       distance,
-      fare
+      fare,
+      serviceType
     } = req.body;
 
     if (!pickupLatitude || !pickupLongitude || !pickupAddress ||
@@ -36,7 +37,8 @@ exports.requestTrip = async (req, res) => {
       destinationLongitude,
       destinationAddress,
       distance,
-      fare
+      fare,
+      serviceType: (serviceType && String(serviceType).trim()) ? String(serviceType).trim() : 'Taxi/Cab'
     });
 
     // Create payment record
