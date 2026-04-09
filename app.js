@@ -103,6 +103,13 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/ratings', ratingsRouter);
 app.use('/api/chats', chatsRouter);
 
+// Backwards-compatible payment checkout URL (some clients may omit `/api`).
+// Keep this in sync with routes/payments.js (GET /checkout/:invoiceNumber).
+app.get('/payments/checkout/:invoiceNumber', (req, res) => {
+  const invoiceNumber = String(req.params.invoiceNumber || '').trim();
+  return res.redirect(302, `/api/payments/checkout/${encodeURIComponent(invoiceNumber)}`);
+});
+
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
