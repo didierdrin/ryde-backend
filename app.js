@@ -35,6 +35,13 @@ var allowedOrigins = [
   'https://ryde-web.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://localhost:5172',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:5172',
+  'http://[::1]:3000',
+  'http://[::1]:3001',
+  'http://[::1]:5172',
   'https://dashboard.sandbox.irembopay.com',
   'https://dashboard.irembopay.com'
 ];
@@ -56,22 +63,18 @@ allowedOrigins.forEach(function(o) {
 // Vercel production + preview deploys for this project (ryde-web*.vercel.app)
 var vercelRydePattern = /^https:\/\/ryde-web[\w.-]*\.vercel\.app$/i;
 
+function isOriginAllowed(origin) {
+  if (!origin) return true; // non-browser clients (curl/postman) omit Origin
+  var normalized = normalizeOriginHeader(origin);
+  if (allowedOriginSet[normalized]) return true;
+  if (vercelRydePattern.test(origin)) return true;
+  if (process.env.NODE_ENV !== 'production') return true;
+  return false;
+}
+
 var corsOptions = {
   origin: function(origin, callback) {
-    if (!origin) {
-      return callback(null, true);
-    }
-    var normalized = normalizeOriginHeader(origin);
-    if (allowedOriginSet[normalized]) {
-      return callback(null, true);
-    }
-    if (vercelRydePattern.test(origin)) {
-      return callback(null, true);
-    }
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    return callback(null, false);
+    return callback(null, isOriginAllowed(origin));
   },
   credentials: true,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -133,7 +136,7 @@ app.use(function(req, res, next) {
 app.use(function(err, req, res, next) {
   // Set CORS headers for error responses
   var origin = req.headers.origin;
-  if (origin) {
+  if (origin && isOriginAllowed(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
