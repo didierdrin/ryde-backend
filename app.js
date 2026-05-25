@@ -62,11 +62,14 @@ allowedOrigins.forEach(function(o) {
 
 // Vercel production + preview deploys for this project (ryde-web*.vercel.app)
 var vercelRydePattern = /^https:\/\/ryde-web[\w.-]*\.vercel\.app$/i;
+// Local dev: CRA (3000/3001), Vite (5172/5173), or any other localhost port
+var localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i;
 
 function isOriginAllowed(origin) {
   if (!origin) return true; // non-browser clients (curl/postman) omit Origin
   var normalized = normalizeOriginHeader(origin);
   if (allowedOriginSet[normalized]) return true;
+  if (localhostPattern.test(origin)) return true;
   if (vercelRydePattern.test(origin)) return true;
   if (process.env.NODE_ENV !== 'production') return true;
   return false;
