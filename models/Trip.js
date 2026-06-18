@@ -55,6 +55,33 @@ class Trip {
     return result.rows[0];
   }
 
+  static async findLocationsByTripId(tripId) {
+    const result = await pool.query(
+      `SELECT t.trip_id, t.status,
+        p.passenger_id,
+        p.current_latitude AS passenger_latitude,
+        p.current_longitude AS passenger_longitude,
+        p.updated_at AS passenger_location_updated_at,
+        u1.name AS passenger_name,
+        d.driver_id,
+        d.current_latitude AS driver_latitude,
+        d.current_longitude AS driver_longitude,
+        d.updated_at AS driver_location_updated_at,
+        u2.name AS driver_name,
+        t.passenger_id AS trip_passenger_id,
+        p.user_id AS passenger_user_id,
+        d.user_id AS driver_user_id
+       FROM trips t
+       JOIN passengers p ON t.passenger_id = p.passenger_id
+       JOIN users u1 ON p.user_id = u1.user_id
+       LEFT JOIN drivers d ON t.driver_id = d.driver_id
+       LEFT JOIN users u2 ON d.user_id = u2.user_id
+       WHERE t.trip_id = $1`,
+      [tripId]
+    );
+    return result.rows[0];
+  }
+
   static async findByPassengerId(passengerId, status = null) {
     let query = `SELECT t.*, 
       d.driver_id,

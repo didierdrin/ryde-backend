@@ -111,6 +111,68 @@ exports.getTripById = async (req, res) => {
   }
 };
 
+exports.getTripLocations = async (req, res) => {
+  try {
+    const row = await Trip.findLocationsByTripId(req.params.tripId);
+    if (!row) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    const userId = req.user.userId;
+    const userType = req.user.userType;
+    const isParticipant =
+      row.passenger_user_id === userId ||
+      row.driver_user_id === userId;
+    const isAdmin = userType === 'ADMIN';
+
+    if (!isParticipant && !isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to view trip locations' });
+    }
+
+    const activeStatuses = ['REQUESTED', 'ACCEPTED', 'IN_PROGRESS'];
+    if (!activeStatuses.includes(row.status)) {
+      return res.json({
+        tripId: row.trip_id,
+        status: row.status,
+        driver: null,
+        passenger: null,
+      });
+    }
+
+    const driver =
+      row.driver_id &&
+      row.driver_latitude != null &&
+      row.driver_longitude != null
+        ? {
+            latitude: parseFloat(row.driver_latitude),
+            longitude: parseFloat(row.driver_longitude),
+            name: row.driver_name,
+            updatedAt: row.driver_location_updated_at,
+          }
+        : null;
+
+    const passenger =
+      row.passenger_latitude != null && row.passenger_longitude != null
+        ? {
+            latitude: parseFloat(row.passenger_latitude),
+            longitude: parseFloat(row.passenger_longitude),
+            name: row.passenger_name,
+            updatedAt: row.passenger_location_updated_at,
+          }
+        : null;
+
+    res.json({
+      tripId: row.trip_id,
+      status: row.status,
+      driver,
+      passenger,
+    });
+  } catch (error) {
+    console.error('Get trip locations error:', error);
+    res.status(500).json({ error: 'Failed to fetch trip locations', details: error.message });
+  }
+};
+
 exports.getAvailableTrips = async (req, res) => {
   try {
     const driver = await Driver.findByUserId(req.user.userId);

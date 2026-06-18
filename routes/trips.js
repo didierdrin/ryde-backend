@@ -152,6 +152,30 @@ router.get('/available', authenticateToken, authorize('DRIVER'), tripController.
  *       404:
  *         description: Trip not found
  */
+/**
+ * @swagger
+ * /api/trips/{tripId}/locations:
+ *   get:
+ *     summary: Get live driver and passenger locations for a trip
+ *     tags: [Trips]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tripId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Live locations for trip participants
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Trip not found
+ */
+router.get('/:tripId/locations', authenticateToken, tripController.getTripLocations);
+
 router.get('/:tripId', authenticateToken, tripController.getTripById);
 
 /**
