@@ -86,6 +86,8 @@ exports.getMyTrips = async (req, res) => {
         return res.status(404).json({ error: 'Driver profile not found' });
       }
       trips = await Trip.findByDriverId(driver.driver_id, req.query.status);
+    } else if (userType === 'ADMIN') {
+      trips = await Trip.findAll(req.query.status);
     } else {
       return res.status(403).json({ error: 'Invalid user type' });
     }
