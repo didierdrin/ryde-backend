@@ -2,6 +2,19 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Passenger = require('../models/Passenger');
 const Driver = require('../models/Driver');
+const { getCurrentReferralCode, isValidReferralCode } = require('../utils/adminReferralCode');
+
+const formatUser = (user) => ({
+  userId: user.user_id,
+  name: user.name,
+  email: user.email,
+  phoneNumber: user.phone_number,
+  userType: user.user_type,
+  registrationDate: user.registration_date,
+  isActive: user.is_active,
+  lastLogin: user.last_login,
+  createdAt: user.created_at,
+});
 
 const generateToken = (userId, email, userType) => {
   return jwt.sign(
@@ -13,11 +26,20 @@ const generateToken = (userId, email, userType) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, phoneNumber, password, userType } = req.body;
+    const { name, email, phoneNumber, password, userType, referralCode } = req.body;
 
     // Validate required fields
     if (!name || !email || !phoneNumber || !password || !userType) {
       return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (userType === 'ADMIN') {
+      if (!referralCode || !referralCode.trim()) {
+        return res.status(400).json({ error: 'Referral code is required for admin registration' });
+      }
+      if (!isValidReferralCode(referralCode)) {
+        return res.status(403).json({ error: 'Invalid or expired referral code' });
+      }
     }
 
     // Check if user already exists
@@ -112,9 +134,19 @@ exports.getProfile = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    res.json({ user: formatUser(user) });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: 'Failed to fetch profile', details: error.message });
+  }
+};
+
+exports.getAdminReferralCode = async (req, res) => {
+  try {
+    const referral = getCurrentReferralCode();
+    res.json(referral);
+  } catch (error) {
+    console.error('Get admin referral code error:', error);
+    res.status(500).json({ error: 'Failed to generate referral code', details: error.message });
   }
 };

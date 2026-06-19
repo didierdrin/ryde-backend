@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authorize } = require('../middleware/auth');
 
 /**
  * @swagger
@@ -144,5 +144,12 @@ router.post('/login', authController.login);
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/profile', authenticateToken, authController.getProfile);
+
+router.get(
+  '/admin-referral-code',
+  authenticateToken,
+  authorize('ADMIN'),
+  authController.getAdminReferralCode
+);
 
 module.exports = router;
