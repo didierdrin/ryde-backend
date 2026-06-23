@@ -18,6 +18,9 @@ var ordersRouter = require('./routes/orders');
 var notificationsRouter = require('./routes/notifications');
 var ratingsRouter = require('./routes/ratings');
 var chatsRouter = require('./routes/chats');
+var rentalsRouter = require('./routes/rentals');
+var auctionsRouter = require('./routes/auctions');
+var mechanicsRouter = require('./routes/mechanics');
 
 var app = express();
 
@@ -108,6 +111,9 @@ app.use('/api/orders', ordersRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/ratings', ratingsRouter);
 app.use('/api/chats', chatsRouter);
+app.use('/api/rentals', rentalsRouter);
+app.use('/api/auctions', auctionsRouter);
+app.use('/api/mechanics', mechanicsRouter);
 
 // Backwards-compatible payment checkout URL (some clients may omit `/api`).
 // Keep this in sync with routes/payments.js (GET /checkout/:invoiceNumber).

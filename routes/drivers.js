@@ -19,6 +19,8 @@ const { authenticateToken, authorize } = require('../middleware/auth');
  */
 router.get('/profile', authenticateToken, authorize('DRIVER'), driverController.getProfile);
 
+router.get('/nearby', authenticateToken, authorize('PASSENGER', 'ADMIN'), driverController.getNearbyDrivers);
+
 /**
  * @swagger
  * /api/drivers/location:

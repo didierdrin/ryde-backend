@@ -14,7 +14,7 @@ async function runMigrations(options = {}) {
   try {
     console.log('Starting database migrations...');
 
-    const migrationFiles = ['001_create_tables.sql', '002_irembopay.sql', '003_trip_service_type.sql'];
+    const migrationFiles = ['001_create_tables.sql', '002_irembopay.sql', '003_trip_service_type.sql', '004_features.sql'];
 
     await client.query('BEGIN');
     for (const name of migrationFiles) {

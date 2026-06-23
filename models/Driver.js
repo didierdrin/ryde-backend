@@ -45,10 +45,10 @@ class Driver {
   }
 
   static async findAvailableDrivers(latitude, longitude, radius = 5) {
-    // Haversine distance in a subquery so we can filter by distance (PostgreSQL does not allow SELECT alias in HAVING)
     const result = await pool.query(
       `SELECT * FROM (
         SELECT d.*, u.name, u.email, u.phone_number,
+          v.make, v.model, v.year, v.color, v.vehicle_type, v.registration_number,
           (6371 * acos(
             LEAST(1, GREATEST(-1,
               cos(radians($1)) * cos(radians(d.current_latitude)) *
@@ -58,6 +58,7 @@ class Driver {
           )) AS distance
          FROM drivers d
          JOIN users u ON d.user_id = u.user_id
+         LEFT JOIN vehicles v ON v.driver_id = d.driver_id
          WHERE d.is_available = TRUE
            AND d.verification_status = 'APPROVED'
            AND d.current_latitude IS NOT NULL
@@ -65,7 +66,7 @@ class Driver {
       ) sub
        WHERE sub.distance <= $3
        ORDER BY sub.distance
-       LIMIT 10`,
+       LIMIT 25`,
       [latitude, longitude, radius]
     );
     return result.rows;
