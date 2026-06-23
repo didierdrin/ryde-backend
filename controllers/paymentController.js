@@ -4,6 +4,12 @@ const User = require('../models/User');
 const RentalPaymentIntent = require('../models/RentalPaymentIntent');
 const { createInvoicePayload } = require('../services/irembopayService');
 
+function buildCheckoutUrl(req, invoiceNumber) {
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const host = req.get('x-forwarded-host') || req.get('host');
+  return `${proto}://${host}/api/payments/checkout/${encodeURIComponent(String(invoiceNumber))}`;
+}
+
 exports.getPaymentByTrip = async (req, res) => {
   try {
     const payment = await Payment.findByTripId(req.params.tripId);
@@ -61,7 +67,11 @@ exports.createInvoice = async (req, res) => {
 
     await Payment.setInvoiceNumber(payment.payment_id, String(invoiceNumber));
 
-    res.json({ invoiceNumber, paymentId });
+    res.json({
+      invoiceNumber,
+      paymentId,
+      checkoutUrl: buildCheckoutUrl(req, invoiceNumber),
+    });
   } catch (error) {
     const status = error.statusCode || error.response?.status;
     console.error('Create invoice error:', error.message, error.response?.data || '');
@@ -118,7 +128,11 @@ exports.createInvoiceForAmount = async (req, res) => {
 
     await RentalPaymentIntent.setInvoiceNumber(intent.intent_id, String(invoiceNumber));
 
-    res.json({ invoiceNumber, intentId: intent.intent_id });
+    res.json({
+      invoiceNumber,
+      intentId: intent.intent_id,
+      checkoutUrl: buildCheckoutUrl(req, invoiceNumber),
+    });
   } catch (error) {
     const status = error.statusCode || error.response?.status;
     console.error('Create invoice for amount error:', error.message, error.response?.data || '');
