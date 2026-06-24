@@ -5,9 +5,24 @@ const RentalPaymentIntent = require('../models/RentalPaymentIntent');
 const { createInvoicePayload } = require('../services/irembopayService');
 
 function buildCheckoutUrl(req, invoiceNumber) {
+  const configured = process.env.PUBLIC_API_URL || process.env.API_URL;
+  if (configured) {
+    const base = String(configured).replace(/\/api\/?$/, '');
+    return `${base}/api/payments/checkout/${encodeURIComponent(String(invoiceNumber))}`;
+  }
   const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
   const host = req.get('x-forwarded-host') || req.get('host');
   return `${proto}://${host}/api/payments/checkout/${encodeURIComponent(String(invoiceNumber))}`;
+}
+
+function invoicePaymentMeta(req, invoiceNumber) {
+  const meta = {
+    checkoutUrl: buildCheckoutUrl(req, invoiceNumber),
+    irembopayEnvironment: process.env.IREMBOPAY_ENVIRONMENT || 'sandbox',
+  };
+  const publicKey = process.env.IREMBOPAY_PUBLIC_KEY;
+  if (publicKey) meta.publicKey = publicKey;
+  return meta;
 }
 
 exports.getPaymentByTrip = async (req, res) => {
@@ -70,7 +85,7 @@ exports.createInvoice = async (req, res) => {
     res.json({
       invoiceNumber,
       paymentId,
-      checkoutUrl: buildCheckoutUrl(req, invoiceNumber),
+      ...invoicePaymentMeta(req, invoiceNumber),
     });
   } catch (error) {
     const status = error.statusCode || error.response?.status;
@@ -131,7 +146,7 @@ exports.createInvoiceForAmount = async (req, res) => {
     res.json({
       invoiceNumber,
       intentId: intent.intent_id,
-      checkoutUrl: buildCheckoutUrl(req, invoiceNumber),
+      ...invoicePaymentMeta(req, invoiceNumber),
     });
   } catch (error) {
     const status = error.statusCode || error.response?.status;
