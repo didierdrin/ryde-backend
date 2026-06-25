@@ -21,6 +21,7 @@ async function runMigrations(options = {}) {
       '004_features.sql',
       '005_profile_extensions.sql',
       '006_rental_vehicle_details.sql',
+      '007_trips_updated_at.sql',
     ];
 
     await client.query('BEGIN');
