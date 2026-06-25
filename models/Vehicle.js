@@ -6,8 +6,8 @@ class Vehicle {
     const vehicleId = uuidv4();
     
     const result = await pool.query(
-      `INSERT INTO vehicles (vehicle_id, driver_id, registration_number, make, model, year, color, vehicle_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO vehicles (vehicle_id, driver_id, registration_number, make, model, year, color, vehicle_type, image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         vehicleId,
@@ -17,7 +17,8 @@ class Vehicle {
         vehicleData.model,
         vehicleData.year,
         vehicleData.color,
-        vehicleData.vehicleType
+        vehicleData.vehicleType,
+        vehicleData.imageUrl || null,
       ]
     );
 

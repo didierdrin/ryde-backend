@@ -129,7 +129,7 @@ router.get('/my-trips', authenticateToken, tripController.getMyTrips);
  *       200:
  *         description: List of available trips
  */
-router.get('/available', authenticateToken, authorize('DRIVER'), tripController.getAvailableTrips);
+router.get('/available', authenticateToken, authorize('DRIVER', 'PASSENGER'), tripController.getAvailableTrips);
 
 /**
  * @swagger

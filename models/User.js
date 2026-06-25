@@ -43,8 +43,39 @@ class User {
 
   static async findById(userId) {
     const result = await pool.query(
-      'SELECT user_id, name, email, phone_number, user_type, registration_date, is_active, last_login, created_at FROM users WHERE user_id = $1 AND deleted_at IS NULL',
+      `SELECT user_id, name, email, phone_number, user_type, profile_picture_url,
+        registration_date, is_active, last_login, created_at
+       FROM users WHERE user_id = $1 AND deleted_at IS NULL`,
       [userId]
+    );
+    return result.rows[0];
+  }
+
+  static async updateProfile(userId, { name, phoneNumber, profilePictureUrl }) {
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (name !== undefined) {
+      fields.push(`name = $${paramCount++}`);
+      values.push(name);
+    }
+    if (phoneNumber !== undefined) {
+      fields.push(`phone_number = $${paramCount++}`);
+      values.push(phoneNumber);
+    }
+    if (profilePictureUrl !== undefined) {
+      fields.push(`profile_picture_url = $${paramCount++}`);
+      values.push(profilePictureUrl || null);
+    }
+
+    if (fields.length === 0) return null;
+
+    values.push(userId);
+    const result = await pool.query(
+      `UPDATE users SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $${paramCount} AND deleted_at IS NULL RETURNING *`,
+      values
     );
     return result.rows[0];
   }

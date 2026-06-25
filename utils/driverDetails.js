@@ -19,6 +19,7 @@ function formatDriverForPassenger(row) {
     name: row.name,
     email: row.email,
     phoneNumber: row.phone_number,
+    profilePictureUrl: row.profile_picture_url || null,
     address: row.address || 'Address not provided',
     distanceKm: row.distance != null ? Number(Number(row.distance).toFixed(2)) : null,
     ageYears: age,

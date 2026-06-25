@@ -1,5 +1,6 @@
 const Passenger = require('../models/Passenger');
 const User = require('../models/User');
+const { formatPassengerProfile } = require('../utils/profileFormat');
 
 exports.getProfile = async (req, res) => {
   try {
@@ -13,7 +14,7 @@ exports.getProfile = async (req, res) => {
       return res.status(404).json({ error: 'Passenger profile not found' });
     }
 
-    res.json({ passenger });
+    res.json({ passenger: formatPassengerProfile(passenger) });
   } catch (error) {
     console.error('Get passenger profile error:', error);
     res.status(500).json({ error: 'Failed to fetch passenger profile', details: error.message });
@@ -53,10 +54,19 @@ exports.updateProfile = async (req, res) => {
     }
 
     const updates = {};
-    if (req.body.paymentMethod) updates.paymentMethod = req.body.paymentMethod;
+    if (req.body.paymentMethod !== undefined) updates.paymentMethod = req.body.paymentMethod;
+    if (req.body.dateOfBirth !== undefined) updates.dateOfBirth = req.body.dateOfBirth;
+    if (req.body.emergencyContactName !== undefined) updates.emergencyContactName = req.body.emergencyContactName;
+    if (req.body.emergencyContactPhone !== undefined) updates.emergencyContactPhone = req.body.emergencyContactPhone;
 
-    const updated = await Passenger.update(passenger.passenger_id, updates);
-    res.json({ message: 'Profile updated', passenger: updated });
+    await Passenger.update(passenger.passenger_id, updates);
+
+    if (req.body.profilePictureUrl !== undefined) {
+      await User.updateProfile(req.user.userId, { profilePictureUrl: req.body.profilePictureUrl });
+    }
+
+    const fresh = await Passenger.findByUserId(req.user.userId);
+    res.json({ message: 'Profile updated', passenger: formatPassengerProfile(fresh) });
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Failed to update profile', details: error.message });

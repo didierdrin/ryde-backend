@@ -144,6 +144,7 @@ router.post('/login', authController.login);
  *               $ref: '#/components/schemas/Error'
  */
 router.get('/profile', authenticateToken, authController.getProfile);
+router.put('/profile', authenticateToken, authController.updateProfile);
 
 router.get(
   '/admin-referral-code',

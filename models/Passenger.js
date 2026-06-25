@@ -23,7 +23,7 @@ class Passenger {
 
   static async findByUserId(userId) {
     const result = await pool.query(
-      `SELECT p.*, u.name, u.email, u.phone_number, u.user_type
+      `SELECT p.*, u.name, u.email, u.phone_number, u.user_type, u.profile_picture_url
        FROM passengers p
        JOIN users u ON p.user_id = u.user_id
        WHERE p.user_id = $1`,

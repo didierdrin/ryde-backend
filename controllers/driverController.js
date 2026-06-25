@@ -2,6 +2,7 @@ const Driver = require('../models/Driver');
 const Vehicle = require('../models/Vehicle');
 const User = require('../models/User');
 const { formatDriverForPassenger } = require('../utils/driverDetails');
+const { formatDriverProfile } = require('../utils/profileFormat');
 
 exports.getProfile = async (req, res) => {
   try {
@@ -17,7 +18,7 @@ exports.getProfile = async (req, res) => {
 
     const vehicle = await Vehicle.findByDriverId(driver.driver_id);
 
-    res.json({ driver, vehicle });
+    res.json({ driver: formatDriverProfile(driver, vehicle) });
   } catch (error) {
     console.error('Get driver profile error:', error);
     res.status(500).json({ error: 'Failed to fetch driver profile', details: error.message });
@@ -74,13 +75,23 @@ exports.updateProfile = async (req, res) => {
     }
 
     const updates = {};
-    if (req.body.licenseNumber) updates.licenseNumber = req.body.licenseNumber;
+    if (req.body.licenseNumber !== undefined) updates.licenseNumber = req.body.licenseNumber;
     if (req.body.address !== undefined) updates.address = req.body.address;
-    if (req.body.dateOfBirth) updates.dateOfBirth = req.body.dateOfBirth;
-    if (req.body.licenseIssuedDate) updates.licenseIssuedDate = req.body.licenseIssuedDate;
+    if (req.body.dateOfBirth !== undefined) updates.dateOfBirth = req.body.dateOfBirth;
+    if (req.body.licenseIssuedDate !== undefined) updates.licenseIssuedDate = req.body.licenseIssuedDate;
+    if (req.body.yearsExperience !== undefined) updates.yearsExperience = req.body.yearsExperience;
+    if (req.body.licenseDocumentUrl !== undefined) updates.licenseDocumentUrl = req.body.licenseDocumentUrl;
+    if (req.body.bio !== undefined) updates.bio = req.body.bio;
 
     const updated = await Driver.update(driver.driver_id, updates);
-    res.json({ message: 'Profile updated', driver: updated });
+
+    if (req.body.profilePictureUrl !== undefined) {
+      await User.updateProfile(req.user.userId, { profilePictureUrl: req.body.profilePictureUrl });
+    }
+
+    const freshDriver = await Driver.findByUserId(req.user.userId);
+    const vehicle = await Vehicle.findByDriverId(driver.driver_id);
+    res.json({ message: 'Profile updated', driver: formatDriverProfile(freshDriver, vehicle) });
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Failed to update profile', details: error.message });
@@ -112,7 +123,8 @@ exports.registerVehicle = async (req, res) => {
       model,
       year,
       color,
-      vehicleType
+      vehicleType,
+      imageUrl: req.body.imageUrl,
     });
 
     res.status(201).json({ message: 'Vehicle registered successfully', vehicle });
@@ -160,6 +172,7 @@ exports.updateVehicle = async (req, res) => {
     if (req.body.year) updates.year = req.body.year;
     if (req.body.color) updates.color = req.body.color;
     if (req.body.vehicleType) updates.vehicleType = req.body.vehicleType;
+    if (req.body.imageUrl !== undefined) updates.imageUrl = req.body.imageUrl;
 
     const updated = await Vehicle.update(vehicle.vehicle_id, updates);
     res.json({ message: 'Vehicle updated', vehicle: updated });

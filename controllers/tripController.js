@@ -3,6 +3,7 @@ const Passenger = require('../models/Passenger');
 const Driver = require('../models/Driver');
 const Payment = require('../models/Payment');
 const Notification = require('../models/Notification');
+const { formatTrips, formatTrip } = require('../utils/tripFormat');
 
 exports.requestTrip = async (req, res) => {
   try {
@@ -92,7 +93,7 @@ exports.getMyTrips = async (req, res) => {
       return res.status(403).json({ error: 'Invalid user type' });
     }
 
-    res.json({ trips });
+    res.json({ trips: formatTrips(trips) });
   } catch (error) {
     console.error('Get trips error:', error);
     res.status(500).json({ error: 'Failed to fetch trips', details: error.message });
@@ -177,23 +178,33 @@ exports.getTripLocations = async (req, res) => {
 
 exports.getAvailableTrips = async (req, res) => {
   try {
-    const driver = await Driver.findByUserId(req.user.userId);
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver profile not found' });
-    }
-
     const { latitude, longitude, radius } = req.query;
     if (!latitude || !longitude) {
       return res.status(400).json({ error: 'Latitude and longitude are required' });
     }
 
     const parsedRadius = radius != null && radius !== '' ? parseFloat(radius) : null;
+    const userType = req.user.userType;
+    let excludePassengerUserId = null;
+
+    if (userType === 'DRIVER') {
+      const driver = await Driver.findByUserId(req.user.userId);
+      if (!driver) {
+        return res.status(404).json({ error: 'Driver profile not found' });
+      }
+    } else if (userType === 'PASSENGER') {
+      excludePassengerUserId = req.user.userId;
+    } else {
+      return res.status(403).json({ error: 'Only drivers and passengers can view nearby rides' });
+    }
+
     const trips = await Trip.findRequestedTrips(
       parseFloat(latitude),
       parseFloat(longitude),
-      parsedRadius
+      parsedRadius,
+      excludePassengerUserId
     );
-    res.json({ trips });
+    res.json({ trips: formatTrips(trips) });
   } catch (error) {
     console.error('Get available trips error:', error);
     res.status(500).json({ error: 'Failed to fetch available trips', details: error.message });

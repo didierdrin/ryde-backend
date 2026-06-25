@@ -83,12 +83,20 @@ class Trip {
   }
 
   static async findByPassengerId(passengerId, status = null) {
-    let query = `SELECT t.*, 
+    let query = `SELECT t.*,
+      p.user_id as passenger_user_id,
+      u1.name as passenger_name,
+      u1.phone_number as passenger_phone,
+      u1.profile_picture_url as passenger_profile_picture_url,
       d.driver_id,
+      d.user_id as driver_user_id,
       u2.name as driver_name,
       u2.phone_number as driver_phone,
-      v.registration_number, v.make, v.model
+      u2.profile_picture_url as driver_profile_picture_url,
+      v.registration_number, v.make, v.model, v.image_url as vehicle_image_url
      FROM trips t
+     JOIN passengers p ON t.passenger_id = p.passenger_id
+     JOIN users u1 ON p.user_id = u1.user_id
      LEFT JOIN drivers d ON t.driver_id = d.driver_id
      LEFT JOIN users u2 ON d.user_id = u2.user_id
      LEFT JOIN vehicles v ON d.driver_id = v.driver_id
@@ -133,13 +141,22 @@ class Trip {
   }
 
   static async findByDriverId(driverId, status = null) {
-    let query = `SELECT t.*, 
+    let query = `SELECT t.*,
       p.user_id as passenger_user_id,
       u1.name as passenger_name,
-      u1.phone_number as passenger_phone
+      u1.phone_number as passenger_phone,
+      u1.profile_picture_url as passenger_profile_picture_url,
+      d.user_id as driver_user_id,
+      u2.name as driver_name,
+      u2.phone_number as driver_phone,
+      u2.profile_picture_url as driver_profile_picture_url,
+      v.registration_number, v.make, v.model, v.image_url as vehicle_image_url
      FROM trips t
      JOIN passengers p ON t.passenger_id = p.passenger_id
      JOIN users u1 ON p.user_id = u1.user_id
+     JOIN drivers d ON t.driver_id = d.driver_id
+     LEFT JOIN users u2 ON d.user_id = u2.user_id
+     LEFT JOIN vehicles v ON d.driver_id = v.driver_id
      WHERE t.driver_id = $1`;
     
     const params = [driverId];
@@ -153,12 +170,21 @@ class Trip {
     return result.rows;
   }
 
-  static async findRequestedTrips(latitude, longitude, radius = null) {
+  static async findRequestedTrips(latitude, longitude, radius = null, excludePassengerUserId = null) {
     const params = [latitude, longitude];
     let radiusFilter = '';
     if (radius != null && !Number.isNaN(radius) && radius > 0) {
       radiusFilter = ' WHERE sub.driver_distance <= $3';
       params.push(radius);
+    }
+
+    let excludeFilter = '';
+    if (excludePassengerUserId) {
+      const idx = params.length + 1;
+      excludeFilter = radiusFilter
+        ? ` AND sub.passenger_user_id != $${idx}`
+        : ` WHERE sub.passenger_user_id != $${idx}`;
+      params.push(excludePassengerUserId);
     }
 
     const result = await pool.query(
@@ -167,6 +193,7 @@ class Trip {
           p.user_id as passenger_user_id,
           u1.name as passenger_name,
           u1.phone_number as passenger_phone,
+          u1.profile_picture_url as passenger_profile_picture_url,
           (6371 * acos(
             LEAST(1, GREATEST(-1,
               cos(radians($1)) * cos(radians(t.pickup_latitude)) *
@@ -181,7 +208,7 @@ class Trip {
            AND t.driver_id IS NULL
            AND t.pickup_latitude IS NOT NULL
            AND t.pickup_longitude IS NOT NULL
-      ) sub${radiusFilter}
+      ) sub${radiusFilter}${excludeFilter}
        ORDER BY sub.driver_distance ASC, sub.request_time DESC
        LIMIT 50`,
       params

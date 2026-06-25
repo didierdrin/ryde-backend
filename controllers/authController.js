@@ -3,18 +3,9 @@ const User = require('../models/User');
 const Passenger = require('../models/Passenger');
 const Driver = require('../models/Driver');
 const { getCurrentReferralCode, isValidReferralCode } = require('../utils/adminReferralCode');
+const { formatUser } = require('../utils/profileFormat');
 
-const formatUser = (user) => ({
-  userId: user.user_id,
-  name: user.name,
-  email: user.email,
-  phoneNumber: user.phone_number,
-  userType: user.user_type,
-  registrationDate: user.registration_date,
-  isActive: user.is_active,
-  lastLogin: user.last_login,
-  createdAt: user.created_at,
-});
+const formatUserResponse = formatUser;
 
 const generateToken = (userId, email, userType) => {
   return jwt.sign(
@@ -75,7 +66,8 @@ exports.register = async (req, res) => {
         name: user.name,
         email: user.email,
         phoneNumber: user.phone_number,
-        userType: user.user_type
+        userType: user.user_type,
+        profilePictureUrl: user.profile_picture_url || null,
       }
     });
   } catch (error) {
@@ -118,7 +110,8 @@ exports.login = async (req, res) => {
         name: user.name,
         email: user.email,
         phoneNumber: user.phone_number,
-        userType: user.user_type
+        userType: user.user_type,
+        profilePictureUrl: user.profile_picture_url || null,
       }
     });
   } catch (error) {
@@ -134,10 +127,30 @@ exports.getProfile = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: formatUser(user) });
+    res.json({ user: formatUserResponse(user) });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: 'Failed to fetch profile', details: error.message });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, phoneNumber, profilePictureUrl } = req.body;
+    const updated = await User.updateProfile(req.user.userId, {
+      name,
+      phoneNumber,
+      profilePictureUrl,
+    });
+
+    if (!updated) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    res.json({ message: 'Profile updated', user: formatUserResponse(updated) });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile', details: error.message });
   }
 };
 

@@ -24,7 +24,7 @@ class Driver {
 
   static async findByUserId(userId) {
     const result = await pool.query(
-      `SELECT d.*, u.name, u.email, u.phone_number, u.user_type
+      `SELECT d.*, u.name, u.email, u.phone_number, u.user_type, u.profile_picture_url
        FROM drivers d
        JOIN users u ON d.user_id = u.user_id
        WHERE d.user_id = $1`,
