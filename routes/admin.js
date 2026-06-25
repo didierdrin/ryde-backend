@@ -11,5 +11,8 @@ router.put(
   authorize('ADMIN'),
   adminController.updateDriverVerification
 );
+router.put('/drivers/:driverId', authenticateToken, authorize('ADMIN'), adminController.updateDriver);
+router.put('/passengers/:passengerId', authenticateToken, authorize('ADMIN'), adminController.updatePassenger);
+router.put('/trips/:tripId', authenticateToken, authorize('ADMIN'), adminController.updateTrip);
 
 module.exports = router;

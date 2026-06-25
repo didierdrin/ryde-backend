@@ -13,11 +13,44 @@ exports.listRentals = async (req, res) => {
 
 exports.createRental = async (req, res) => {
   try {
-    const { make, model, year, color, vehicleType, dailyRate, imageUrl, description } = req.body;
+    const {
+      make,
+      model,
+      year,
+      color,
+      vehicleType,
+      dailyRate,
+      dailyRateWithDriver,
+      dailyRateWithoutDriver,
+      imageUrl,
+      description,
+      pickupLocation,
+      transmission,
+      fuelType,
+      ownerName,
+      seats,
+    } = req.body;
 
-    if (!make || !model || !year || !color || !dailyRate || !imageUrl) {
+    const withoutDriver = dailyRateWithoutDriver != null ? Number(dailyRateWithoutDriver) : Number(dailyRate);
+    const withDriver = Number(dailyRateWithDriver);
+
+    if (
+      !make ||
+      !model ||
+      !year ||
+      !color ||
+      !imageUrl ||
+      !pickupLocation ||
+      !ownerName ||
+      !seats ||
+      !transmission ||
+      !fuelType ||
+      !withoutDriver ||
+      !withDriver
+    ) {
       return res.status(400).json({
-        error: 'make, model, year, color, dailyRate, and imageUrl are required',
+        error:
+          'make, model, year, color, imageUrl, pickupLocation, ownerName, seats, transmission, fuelType, dailyRateWithDriver, and dailyRateWithoutDriver are required',
       });
     }
 
@@ -28,9 +61,16 @@ exports.createRental = async (req, res) => {
         year: Number(year),
         color,
         vehicleType: vehicleType || 'SEDAN',
-        dailyRate: Number(dailyRate),
+        dailyRate: withoutDriver,
+        dailyRateWithDriver: withDriver,
+        dailyRateWithoutDriver: withoutDriver,
         imageUrl,
         description,
+        pickupLocation,
+        transmission,
+        fuelType,
+        ownerName,
+        seats: Number(seats),
       },
       req.user.userId
     );
@@ -46,15 +86,38 @@ exports.updateRental = async (req, res) => {
   try {
     const { rentalId } = req.params;
     const updates = {};
-    const fields = ['make', 'model', 'year', 'color', 'vehicleType', 'dailyRate', 'imageUrl', 'description', 'isAvailable'];
+    const fields = [
+      'make',
+      'model',
+      'year',
+      'color',
+      'vehicleType',
+      'dailyRate',
+      'dailyRateWithDriver',
+      'dailyRateWithoutDriver',
+      'imageUrl',
+      'description',
+      'pickupLocation',
+      'transmission',
+      'fuelType',
+      'ownerName',
+      'seats',
+      'isAvailable',
+    ];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) {
         updates[field] = req.body[field];
       }
     });
 
-    if (updates.year) updates.year = Number(updates.year);
-    if (updates.dailyRate) updates.dailyRate = Number(updates.dailyRate);
+    if (updates.year !== undefined) updates.year = Number(updates.year);
+    if (updates.dailyRate !== undefined) updates.dailyRate = Number(updates.dailyRate);
+    if (updates.dailyRateWithDriver !== undefined) updates.dailyRateWithDriver = Number(updates.dailyRateWithDriver);
+    if (updates.dailyRateWithoutDriver !== undefined) updates.dailyRateWithoutDriver = Number(updates.dailyRateWithoutDriver);
+    if (updates.seats !== undefined) updates.seats = Number(updates.seats);
+    if (updates.dailyRateWithoutDriver !== undefined) {
+      updates.dailyRate = updates.dailyRateWithoutDriver;
+    }
 
     const vehicle = await RentalVehicle.update(rentalId, updates);
     if (!vehicle) {

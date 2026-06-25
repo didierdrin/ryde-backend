@@ -22,9 +22,15 @@ class AuctionListing {
   }
 
   static async findAll({ listingType, status = 'ACTIVE' } = {}) {
-    const conditions = ['a.status = $1'];
-    const values = [status];
-    let paramCount = 2;
+    const conditions = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (status) {
+      conditions.push(`a.status = $${paramCount}`);
+      values.push(status);
+      paramCount++;
+    }
 
     if (listingType) {
       conditions.push(`a.listing_type = $${paramCount}`);
@@ -32,11 +38,13 @@ class AuctionListing {
       paramCount++;
     }
 
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const result = await pool.query(
       `SELECT a.*, u.name AS seller_name
        FROM auction_listings a
        JOIN users u ON a.user_id = u.user_id
-       WHERE ${conditions.join(' AND ')}
+       ${where}
        ORDER BY a.created_at DESC`,
       values
     );
@@ -86,6 +94,51 @@ class AuctionListing {
       [status, listingId]
     );
     return AuctionListing.format(result.rows[0]);
+  }
+
+  static async update(listingId, updates) {
+    const fieldMap = {
+      listingType: 'listing_type',
+      title: 'title',
+      description: 'description',
+      make: 'make',
+      model: 'model',
+      year: 'year',
+      price: 'price',
+      imageUrl: 'image_url',
+      status: 'status',
+    };
+
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    Object.keys(updates).forEach((key) => {
+      if (updates[key] !== undefined && fieldMap[key]) {
+        let value = updates[key];
+        if (key === 'listingType') value = String(value).toUpperCase();
+        fields.push(`${fieldMap[key]} = $${paramCount}`);
+        values.push(value);
+        paramCount++;
+      }
+    });
+
+    if (fields.length === 0) return null;
+
+    values.push(listingId);
+    const result = await pool.query(
+      `UPDATE auction_listings SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       WHERE listing_id = $${paramCount} RETURNING *`,
+      values
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    const withSeller = await pool.query(
+      `SELECT a.*, u.name AS seller_name FROM auction_listings a
+       JOIN users u ON a.user_id = u.user_id WHERE a.listing_id = $1`,
+      [listingId]
+    );
+    return AuctionListing.format(withSeller.rows[0]);
   }
 }
 

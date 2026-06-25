@@ -5,6 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 
 router.get('/', authenticateToken, auctionController.listAuctions);
 router.post('/', authenticateToken, auctionController.createListing);
+router.put('/:listingId', authenticateToken, auctionController.updateListing);
 router.post('/:listingId/purchase', authenticateToken, auctionController.purchaseListing);
 router.post('/:listingId/cancel', authenticateToken, auctionController.cancelListing);
 

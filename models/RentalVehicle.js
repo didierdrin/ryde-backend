@@ -12,6 +12,13 @@ class RentalVehicle {
       color: row.color,
       type: row.vehicle_type,
       dailyRate: Number(row.daily_rate),
+      dailyRateWithDriver: row.daily_rate_with_driver != null ? Number(row.daily_rate_with_driver) : null,
+      dailyRateWithoutDriver: row.daily_rate_without_driver != null ? Number(row.daily_rate_without_driver) : null,
+      pickupLocation: row.pickup_location,
+      transmission: row.transmission,
+      fuelType: row.fuel_type,
+      ownerName: row.owner_name,
+      seats: row.seats != null ? Number(row.seats) : null,
       imageUrl: row.image_url,
       description: row.description,
       isAvailable: row.is_available,
@@ -37,10 +44,13 @@ class RentalVehicle {
 
   static async create(data, createdBy = null) {
     const rentalId = uuidv4();
+    const dailyRateWithoutDriver = data.dailyRateWithoutDriver ?? data.dailyRate;
     const result = await pool.query(
       `INSERT INTO rental_vehicles
-        (rental_id, make, model, year, color, vehicle_type, daily_rate, image_url, description, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        (rental_id, make, model, year, color, vehicle_type, daily_rate, daily_rate_with_driver,
+         daily_rate_without_driver, pickup_location, transmission, fuel_type, owner_name, seats,
+         image_url, description, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         rentalId,
@@ -49,7 +59,14 @@ class RentalVehicle {
         data.year,
         data.color,
         data.vehicleType || 'SEDAN',
-        data.dailyRate,
+        dailyRateWithoutDriver,
+        data.dailyRateWithDriver,
+        dailyRateWithoutDriver,
+        data.pickupLocation,
+        data.transmission || 'AUTOMATIC',
+        data.fuelType || 'PETROL',
+        data.ownerName,
+        data.seats,
         data.imageUrl,
         data.description || null,
         createdBy,
@@ -66,6 +83,13 @@ class RentalVehicle {
       color: 'color',
       vehicleType: 'vehicle_type',
       dailyRate: 'daily_rate',
+      dailyRateWithDriver: 'daily_rate_with_driver',
+      dailyRateWithoutDriver: 'daily_rate_without_driver',
+      pickupLocation: 'pickup_location',
+      transmission: 'transmission',
+      fuelType: 'fuel_type',
+      ownerName: 'owner_name',
+      seats: 'seats',
       imageUrl: 'image_url',
       description: 'description',
       isAvailable: 'is_available',

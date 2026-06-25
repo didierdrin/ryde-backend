@@ -3,7 +3,8 @@ const AuctionListing = require('../models/AuctionListing');
 exports.listAuctions = async (req, res) => {
   try {
     const listingType = req.query.type || null;
-    const status = req.query.status || 'ACTIVE';
+    const showAll = req.query.all === 'true' && req.user?.userType === 'ADMIN';
+    const status = showAll ? null : (req.query.status || 'ACTIVE');
     const listings = await AuctionListing.findAll({ listingType, status });
     res.json({ listings });
   } catch (error) {
@@ -64,6 +65,39 @@ exports.purchaseListing = async (req, res) => {
   } catch (error) {
     console.error('Purchase listing error:', error);
     res.status(500).json({ error: 'Failed to complete purchase', details: error.message });
+  }
+};
+
+exports.updateListing = async (req, res) => {
+  try {
+    const { listingId } = req.params;
+    const listing = await AuctionListing.findById(listingId);
+
+    if (!listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    if (listing.userId !== req.user.userId && req.user.userType !== 'ADMIN') {
+      return res.status(403).json({ error: 'Not allowed to update this listing' });
+    }
+
+    const updates = {};
+    const fields = ['listingType', 'title', 'description', 'make', 'model', 'year', 'price', 'imageUrl', 'status'];
+    fields.forEach((field) => {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    });
+
+    if (updates.year !== undefined) updates.year = Number(updates.year);
+    if (updates.price !== undefined) updates.price = Number(updates.price);
+    if (updates.status && !['ACTIVE', 'SOLD', 'CANCELLED'].includes(updates.status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const updated = await AuctionListing.update(listingId, updates);
+    res.json({ message: 'Listing updated', listing: updated });
+  } catch (error) {
+    console.error('Update listing error:', error);
+    res.status(500).json({ error: 'Failed to update listing', details: error.message });
   }
 };
 
