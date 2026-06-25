@@ -182,16 +182,17 @@ exports.getAvailableTrips = async (req, res) => {
       return res.status(404).json({ error: 'Driver profile not found' });
     }
 
-    if (!driver.is_available) {
-      return res.status(400).json({ error: 'Driver is not available' });
-    }
-
-    const { latitude, longitude } = req.query;
+    const { latitude, longitude, radius } = req.query;
     if (!latitude || !longitude) {
       return res.status(400).json({ error: 'Latitude and longitude are required' });
     }
 
-    const trips = await Trip.findRequestedTrips(parseFloat(latitude), parseFloat(longitude));
+    const parsedRadius = radius != null && radius !== '' ? parseFloat(radius) : null;
+    const trips = await Trip.findRequestedTrips(
+      parseFloat(latitude),
+      parseFloat(longitude),
+      parsedRadius
+    );
     res.json({ trips });
   } catch (error) {
     console.error('Get available trips error:', error);
