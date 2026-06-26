@@ -182,3 +182,18 @@ curl -X POST http://localhost:3000/api/auth/login \
 - The Flutter app uses Firebase Cloud Messaging (FCM) for push notifications
 - The Flutter app uses Firebase Storage for file uploads
 - All other operations use this REST API backend
+
+## Export PDF email (Gmail)
+
+Admin export **Send to email** uses Gmail SMTP. On Railway, add:
+
+| Variable | Value |
+|----------|--------|
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_SECURE` | `false` |
+| `SMTP_USER` | `bertrandngabo6@gmail.com` |
+| `SMTP_PASS` | Gmail [App Password](https://myaccount.google.com/apppasswords) (not the normal Gmail password) |
+| `SMTP_FROM` | `bertrandngabo6@gmail.com` |
+
+Redeploy the backend after saving variables. For local dev, copy the SMTP block from `.env.example` into `.env` and set `SMTP_PASS`.

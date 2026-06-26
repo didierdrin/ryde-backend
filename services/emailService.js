@@ -31,7 +31,7 @@ async function sendPdfEmail(opts) {
   const transporter = await getTransporter();
   if (!transporter) {
     throw new Error(
-      'Email is not configured on the server. Download the PDF instead, or ask your administrator to set SMTP_HOST, SMTP_USER, and SMTP_PASS.'
+      'Email is not configured on the server. Download the PDF instead, or set SMTP_HOST, SMTP_USER, and SMTP_PASS (Gmail: use an App Password, not your login password).'
     );
   }
 
