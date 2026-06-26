@@ -13,6 +13,16 @@ router.put(
 );
 router.put('/drivers/:driverId', authenticateToken, authorize('ADMIN'), adminController.updateDriver);
 router.put('/passengers/:passengerId', authenticateToken, authorize('ADMIN'), adminController.updatePassenger);
+router.get('/trips', authenticateToken, authorize('ADMIN'), adminController.listTrips);
+router.post('/trips', authenticateToken, authorize('ADMIN'), adminController.createTrip);
 router.put('/trips/:tripId', authenticateToken, authorize('ADMIN'), adminController.updateTrip);
+router.get('/subscriptions', authenticateToken, authorize('ADMIN'), adminController.listSubscriptions);
+router.post('/subscriptions', authenticateToken, authorize('ADMIN'), adminController.createSubscription);
+router.delete(
+  '/subscriptions/:subscriptionId',
+  authenticateToken,
+  authorize('ADMIN'),
+  adminController.cancelSubscription
+);
 
 module.exports = router;

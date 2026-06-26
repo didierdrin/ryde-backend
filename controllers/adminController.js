@@ -2,7 +2,10 @@ const pool = require('../config/database');
 const Driver = require('../models/Driver');
 const Passenger = require('../models/Passenger');
 const Trip = require('../models/Trip');
+const Payment = require('../models/Payment');
+const Subscription = require('../models/Subscription');
 const { formatDriverProfile, formatPassengerProfile } = require('../utils/profileFormat');
+const { formatTrips, formatTrip } = require('../utils/tripFormat');
 
 exports.listDrivers = async (req, res) => {
   try {
@@ -234,6 +237,141 @@ exports.updatePassenger = async (req, res) => {
   }
 };
 
+exports.listTrips = async (req, res) => {
+  try {
+    const activeOnly = req.query.active === 'true';
+    const trips = activeOnly
+      ? await Trip.findActive()
+      : await Trip.findAll(req.query.status || null);
+    res.json({ trips: formatTrips(trips) });
+  } catch (error) {
+    console.error('Admin list trips error:', error);
+    res.status(500).json({ error: 'Failed to fetch trips', details: error.message });
+  }
+};
+
+exports.createTrip = async (req, res) => {
+  try {
+    const {
+      passengerPhone,
+      pickupLatitude,
+      pickupLongitude,
+      pickupAddress,
+      destinationLatitude,
+      destinationLongitude,
+      destinationAddress,
+      distance,
+      fare,
+      serviceType,
+    } = req.body;
+
+    if (
+      !passengerPhone ||
+      !pickupAddress ||
+      !destinationAddress ||
+      pickupLatitude == null ||
+      pickupLongitude == null ||
+      destinationLatitude == null ||
+      destinationLongitude == null ||
+      !fare
+    ) {
+      return res.status(400).json({
+        error:
+          'passengerPhone, pickupAddress, destinationAddress, coordinates, and fare are required',
+      });
+    }
+
+    const passengerResult = await pool.query(
+      `SELECT p.passenger_id
+       FROM passengers p
+       JOIN users u ON p.user_id = u.user_id
+       WHERE u.phone_number = $1 AND u.deleted_at IS NULL
+       LIMIT 1`,
+      [passengerPhone]
+    );
+
+    if (!passengerResult.rows[0]) {
+      return res.status(404).json({
+        error: 'No passenger found with that phone number. Register the passenger first.',
+      });
+    }
+
+    const passengerId = passengerResult.rows[0].passenger_id;
+    const trip = await Trip.create(passengerId, {
+      pickupLatitude: Number(pickupLatitude),
+      pickupLongitude: Number(pickupLongitude),
+      pickupAddress,
+      destinationLatitude: Number(destinationLatitude),
+      destinationLongitude: Number(destinationLongitude),
+      destinationAddress,
+      distance: distance != null ? Number(distance) : 5,
+      fare: Number(fare),
+      serviceType: serviceType || 'Taxi/Cab',
+    });
+
+    await Payment.create(trip.trip_id, {
+      amount: Number(fare),
+      paymentMethod: 'MTN_MOMO',
+      paymentStatus: 'PENDING',
+    });
+
+    const fullTrip = await Trip.findById(trip.trip_id);
+    res.status(201).json({ message: 'Trip created', trip: formatTrip(fullTrip) });
+  } catch (error) {
+    console.error('Admin create trip error:', error);
+    res.status(500).json({ error: 'Failed to create trip', details: error.message });
+  }
+};
+
+exports.listSubscriptions = async (req, res) => {
+  try {
+    const subscriptions = await Subscription.findAll();
+    res.json({ subscriptions });
+  } catch (error) {
+    console.error('Admin list subscriptions error:', error);
+    res.status(500).json({ error: 'Failed to fetch subscriptions', details: error.message });
+  }
+};
+
+exports.createSubscription = async (req, res) => {
+  try {
+    const { driverId, tier, startDate, endDate, commissionRate } = req.body;
+    if (!driverId || !tier || !startDate || !endDate) {
+      return res.status(400).json({ error: 'driverId, tier, startDate, and endDate are required' });
+    }
+
+    const driver = await pool.query('SELECT driver_id FROM drivers WHERE driver_id = $1', [driverId]);
+    if (!driver.rows[0]) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    const subscription = await Subscription.create({
+      driverId,
+      tier,
+      startDate,
+      endDate,
+      commissionRate,
+    });
+    res.status(201).json({ message: 'Subscription created', subscription });
+  } catch (error) {
+    console.error('Admin create subscription error:', error);
+    res.status(500).json({ error: 'Failed to create subscription', details: error.message });
+  }
+};
+
+exports.cancelSubscription = async (req, res) => {
+  try {
+    const subscription = await Subscription.deactivate(req.params.subscriptionId);
+    if (!subscription) {
+      return res.status(404).json({ error: 'Subscription not found' });
+    }
+    res.json({ message: 'Subscription cancelled', subscription });
+  } catch (error) {
+    console.error('Admin cancel subscription error:', error);
+    res.status(500).json({ error: 'Failed to cancel subscription', details: error.message });
+  }
+};
+
 exports.updateTrip = async (req, res) => {
   try {
     const { tripId } = req.params;
@@ -256,7 +394,8 @@ exports.updateTrip = async (req, res) => {
       return res.status(404).json({ error: 'Trip not found' });
     }
 
-    res.json({ message: 'Trip updated', trip });
+    const fullTrip = await Trip.findById(tripId);
+    res.json({ message: 'Trip updated', trip: formatTrip(fullTrip) });
   } catch (error) {
     console.error('Admin update trip error:', error);
     res.status(500).json({ error: 'Failed to update trip', details: error.message });

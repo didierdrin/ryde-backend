@@ -113,6 +113,28 @@ class Trip {
     return result.rows;
   }
 
+  static async findActive() {
+    const result = await pool.query(
+      `SELECT t.*,
+        p.user_id as passenger_user_id,
+        u1.name as passenger_name,
+        u1.phone_number as passenger_phone,
+        d.driver_id,
+        u2.name as driver_name,
+        u2.phone_number as driver_phone,
+        v.registration_number, v.make, v.model
+       FROM trips t
+       JOIN passengers p ON t.passenger_id = p.passenger_id
+       JOIN users u1 ON p.user_id = u1.user_id
+       LEFT JOIN drivers d ON t.driver_id = d.driver_id
+       LEFT JOIN users u2 ON d.user_id = u2.user_id
+       LEFT JOIN vehicles v ON d.driver_id = v.driver_id
+       WHERE t.status IN ('REQUESTED', 'ACCEPTED', 'IN_PROGRESS')
+       ORDER BY t.request_time DESC`
+    );
+    return result.rows;
+  }
+
   static async findAll(status = null) {
     let query = `SELECT t.*,
       p.user_id as passenger_user_id,
