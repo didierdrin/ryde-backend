@@ -17,6 +17,17 @@ exports.sendExportEmail = async (req, res) => {
     const safeFilename = (filename || 'ryde-export').replace(/[^\w.-]+/g, '-');
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
+    const maxBytes = Number(process.env.EXPORT_PDF_MAX_BYTES || 10 * 1024 * 1024);
+    if (pdfBuffer.length > maxBytes) {
+      return res.status(413).json({
+        error: `PDF is too large to email (${Math.round(pdfBuffer.length / 1024)} KB). Try downloading instead, or export a smaller report.`,
+      });
+    }
+
+    if (pdfBuffer.length < 100) {
+      return res.status(400).json({ error: 'Invalid PDF data' });
+    }
+
     await sendPdfEmail({
       to: recipient,
       subject: `${title} — RYDE`,
