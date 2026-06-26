@@ -183,17 +183,15 @@ curl -X POST http://localhost:3000/api/auth/login \
 - The Flutter app uses Firebase Storage for file uploads
 - All other operations use this REST API backend
 
-## Export PDF email (Gmail)
+## Export PDF email (Resend)
 
-Admin export **Send to email** uses Gmail SMTP. On Railway, add:
+Admin export **Send to email** uses the [Resend](https://resend.com) API (free tier: 3,000 emails/month). On Railway, add:
 
 | Variable | Value |
 |----------|--------|
-| `SMTP_HOST` | `smtp.gmail.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_SECURE` | `false` |
-| `SMTP_USER` | `bertrandngabo6@gmail.com` |
-| `SMTP_PASS` | Gmail [App Password](https://myaccount.google.com/apppasswords) (not the normal Gmail password) |
-| `SMTP_FROM` | `bertrandngabo6@gmail.com` |
+| `RESEND_API_KEY` | Your Resend API key (`re_…`) from the [Resend dashboard](https://resend.com/api-keys) |
+| `RESEND_FROM` | `RYDE <onboarding@resend.dev>` for testing, or `RYDE <support@yourdomain.com>` after domain verification |
 
-Redeploy the backend after saving variables. For local dev, copy the SMTP block from `.env.example` into `.env` and set `SMTP_PASS`.
+Redeploy the backend after saving variables. For local dev, copy the Resend block from `.env.example` into `.env`.
+
+**Note:** On Resend’s free test sender, you can only deliver to the email address on your Resend account until you verify a custom domain.

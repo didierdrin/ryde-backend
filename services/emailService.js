@@ -1,55 +1,44 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-let transporterPromise = null;
+let resendClient = null;
 
-function getTransporter() {
-  if (!transporterPromise) {
-    const host = process.env.SMTP_HOST;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!host || !user || !pass) {
-      return Promise.resolve(null);
-    }
-
-    transporterPromise = Promise.resolve(
-      nodemailer.createTransport({
-        host,
-        port: Number(process.env.SMTP_PORT || 587),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: { user, pass },
-      })
-    );
+function getResend() {
+  if (!resendClient && process.env.RESEND_API_KEY) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
   }
-  return transporterPromise;
+  return resendClient;
 }
 
 /**
  * @param {{ to: string, subject: string, text: string, filename: string, pdfBuffer: Buffer }} opts
  */
 async function sendPdfEmail(opts) {
-  const transporter = await getTransporter();
-  if (!transporter) {
+  const resend = getResend();
+  if (!resend) {
     throw new Error(
-      'Email is not configured on the server. Download the PDF instead, or set SMTP_HOST, SMTP_USER, and SMTP_PASS (Gmail: use an App Password, not your login password).'
+      'Email is not configured on the server. Download the PDF instead, or set RESEND_API_KEY (and RESEND_FROM) on the backend.'
     );
   }
 
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const from = process.env.RESEND_FROM || 'RYDE <onboarding@resend.dev>';
+  const filename = opts.filename.endsWith('.pdf') ? opts.filename : `${opts.filename}.pdf`;
 
-  await transporter.sendMail({
-    from: `RYDE <${from}>`,
-    to: opts.to,
+  const { error } = await resend.emails.send({
+    from,
+    to: [opts.to],
     subject: opts.subject,
     text: opts.text,
     attachments: [
       {
-        filename: opts.filename.endsWith('.pdf') ? opts.filename : `${opts.filename}.pdf`,
+        filename,
         content: opts.pdfBuffer,
-        contentType: 'application/pdf',
       },
     ],
   });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to send export email');
+  }
 }
 
 module.exports = { sendPdfEmail };
