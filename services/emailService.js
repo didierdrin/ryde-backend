@@ -1,44 +1,68 @@
-const { Resend } = require('resend');
+const axios = require('axios');
 
-let resendClient = null;
+function getResendApiKey() {
+  return (process.env.RESEND_API_KEY || '').trim();
+}
 
-function getResend() {
-  if (!resendClient && process.env.RESEND_API_KEY) {
-    resendClient = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resendClient;
+function getFromAddress() {
+  const raw = (process.env.RESEND_FROM || 'onboarding@resend.dev').trim();
+  if (!raw) return 'RYDE <onboarding@resend.dev>';
+  if (raw.includes('<') && raw.includes('>')) return raw;
+  if (raw.includes('@')) return `RYDE <${raw}>`;
+  return `RYDE <${raw}>`;
+}
+
+function isEmailConfigured() {
+  return Boolean(getResendApiKey());
 }
 
 /**
  * @param {{ to: string, subject: string, text: string, filename: string, pdfBuffer: Buffer }} opts
  */
 async function sendPdfEmail(opts) {
-  const resend = getResend();
-  if (!resend) {
+  const apiKey = getResendApiKey();
+  if (!apiKey) {
     throw new Error(
-      'Email is not configured on the server. Download the PDF instead, or set RESEND_API_KEY (and RESEND_FROM) on the backend.'
+      'Email is not configured on the server. Set RESEND_API_KEY on the backend (Render → Environment), then redeploy.'
     );
   }
 
-  const from = process.env.RESEND_FROM || 'RYDE <onboarding@resend.dev>';
+  const from = getFromAddress();
   const filename = opts.filename.endsWith('.pdf') ? opts.filename : `${opts.filename}.pdf`;
 
-  const { error } = await resend.emails.send({
-    from,
-    to: [opts.to],
-    subject: opts.subject,
-    text: opts.text,
-    attachments: [
+  try {
+    await axios.post(
+      'https://api.resend.com/emails',
       {
-        filename,
-        content: opts.pdfBuffer,
+        from,
+        to: [opts.to],
+        subject: opts.subject,
+        text: opts.text,
+        attachments: [
+          {
+            filename,
+            content: opts.pdfBuffer.toString('base64'),
+          },
+        ],
       },
-    ],
-  });
-
-  if (error) {
-    throw new Error(error.message || 'Failed to send export email');
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      }
+    );
+  } catch (err) {
+    const message =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message ||
+      'Failed to send export email';
+    throw new Error(message);
   }
 }
 
-module.exports = { sendPdfEmail };
+module.exports = { sendPdfEmail, isEmailConfigured };

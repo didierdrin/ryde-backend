@@ -97,8 +97,6 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
 
 app.use(logger('dev'));
-// Export emails carry base64 PDFs — needs a larger limit than default (~100kb).
-app.use('/api/export', express.json({ limit: process.env.EXPORT_BODY_LIMIT || '15mb' }));
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: process.env.JSON_BODY_LIMIT || '1mb' }));
 app.use(cookieParser());

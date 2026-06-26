@@ -1,4 +1,11 @@
-const { sendPdfEmail } = require('../services/emailService');
+const { sendPdfEmail, isEmailConfigured } = require('../services/emailService');
+
+exports.exportStatus = async (req, res) => {
+  res.json({
+    emailConfigured: isEmailConfigured(),
+    from: isEmailConfigured() ? process.env.RESEND_FROM || 'RYDE <onboarding@resend.dev>' : null,
+  });
+};
 
 exports.sendExportEmail = async (req, res) => {
   try {

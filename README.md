@@ -190,7 +190,7 @@ Admin export **Send to email** uses the [Resend](https://resend.com) API (free t
 | Variable | Value |
 |----------|--------|
 | `RESEND_API_KEY` | Your Resend API key (`re_…`) from the [Resend dashboard](https://resend.com/api-keys) |
-| `RESEND_FROM` | `RYDE <onboarding@resend.dev>` for testing, or `RYDE <support@yourdomain.com>` after domain verification |
+| `RESEND_FROM` | `onboarding@resend.dev` for testing, or `support@yourdomain.com` after domain verification |
 
 Redeploy the backend after saving variables. For local dev, copy the Resend block from `.env.example` into `.env`.
 
