@@ -23,7 +23,7 @@ async function sendPdfEmail(opts) {
   const apiKey = getResendApiKey();
   if (!apiKey) {
     throw new Error(
-      'Email is not configured on the server. Set RESEND_API_KEY on the backend (Render → Environment), then redeploy.'
+      'Email is not configured on the server. Set RESEND_API_KEY on Railway (ryde-backend → Variables), then redeploy.'
     );
   }
 
