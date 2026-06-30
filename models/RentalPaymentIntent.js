@@ -58,6 +58,41 @@ class RentalPaymentIntent {
     );
     return result.rows[0];
   }
+
+  static format(row) {
+    if (!row) return null;
+    return {
+      intentId: row.intent_id,
+      amount: Number(row.amount),
+      status: row.status,
+      invoiceNumber: row.invoice_number,
+      vehicleRef: row.vehicle_ref,
+      description: row.description,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      vehicle: row.make
+        ? {
+            make: row.make,
+            model: row.model,
+            year: row.year,
+            color: row.color,
+            imageUrl: row.image_url,
+          }
+        : null,
+    };
+  }
+
+  static async findByUserId(userId) {
+    const result = await pool.query(
+      `SELECT ri.*, rv.make, rv.model, rv.year, rv.color, rv.image_url
+       FROM rental_payment_intents ri
+       LEFT JOIN rental_vehicles rv ON rv.rental_id = ri.vehicle_ref
+       WHERE ri.user_id = $1
+       ORDER BY ri.created_at DESC`,
+      [userId]
+    );
+    return result.rows.map(RentalPaymentIntent.format);
+  }
 }
 
 module.exports = RentalPaymentIntent;

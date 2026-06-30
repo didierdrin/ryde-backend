@@ -2,7 +2,17 @@ const Payment = require('../models/Payment');
 const Trip = require('../models/Trip');
 const User = require('../models/User');
 const RentalPaymentIntent = require('../models/RentalPaymentIntent');
+const RentalVehicle = require('../models/RentalVehicle');
 const { createInvoicePayload } = require('../services/irembopayService');
+
+async function completeRentalIntent(intent) {
+  if (!intent) return;
+  if (intent.status === 'COMPLETED') return;
+  await RentalPaymentIntent.markCompleted(intent.intent_id);
+  if (intent.vehicle_ref) {
+    await RentalVehicle.update(intent.vehicle_ref, { isAvailable: false });
+  }
+}
 
 function buildCheckoutUrl(req, invoiceNumber) {
   const configured = process.env.PUBLIC_API_URL || process.env.API_URL;
@@ -217,7 +227,7 @@ exports.paymentSubscribe = async (req, res) => {
         return res.status(200).json({ success: true, scope: 'rental', duplicate: true });
       }
       if (isPaid) {
-        await RentalPaymentIntent.markCompleted(intent.intent_id);
+        await completeRentalIntent(intent);
       } else if (isFailed) {
         await RentalPaymentIntent.markFailed(intent.intent_id);
       } else {
@@ -251,6 +261,40 @@ exports.getRentalIntent = async (req, res) => {
   } catch (error) {
     console.error('getRentalIntent error:', error);
     res.status(500).json({ error: 'Failed to fetch intent', details: error.message });
+  }
+};
+
+exports.getRentalHistory = async (req, res) => {
+  try {
+    const history = await RentalPaymentIntent.findByUserId(req.user.userId);
+    res.json({ history });
+  } catch (error) {
+    console.error('getRentalHistory error:', error);
+    res.status(500).json({ error: 'Failed to fetch rental history', details: error.message });
+  }
+};
+
+/** Client-side IremboPay success: mark rental paid and vehicle unavailable immediately. */
+exports.acknowledgeRentalPayment = async (req, res) => {
+  try {
+    const row = await RentalPaymentIntent.findByIntentId(req.params.intentId);
+    if (!row || row.user_id !== req.user.userId) {
+      return res.status(404).json({ error: 'Intent not found' });
+    }
+    await completeRentalIntent(row);
+    const updated = await RentalPaymentIntent.findByIntentId(row.intent_id);
+    res.json({
+      message: 'Rental confirmed',
+      intent: {
+        intentId: updated.intent_id,
+        amount: updated.amount,
+        status: updated.status,
+        vehicleRef: updated.vehicle_ref,
+      },
+    });
+  } catch (error) {
+    console.error('acknowledgeRentalPayment error:', error);
+    res.status(500).json({ error: 'Failed to confirm rental', details: error.message });
   }
 };
 
