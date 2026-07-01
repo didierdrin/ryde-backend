@@ -2,13 +2,24 @@ const pool = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 
 class RentalPaymentIntent {
-  static async create(userId, { amount, vehicleRef, description }) {
+  static async create(userId, { amount, vehicleRef, description, rentalStartDate, rentalEndDate, rentalDays, withDriver }) {
     const intentId = uuidv4();
     const result = await pool.query(
-      `INSERT INTO rental_payment_intents (intent_id, user_id, amount, vehicle_ref, description)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO rental_payment_intents
+        (intent_id, user_id, amount, vehicle_ref, description, rental_start_date, rental_end_date, rental_days, with_driver)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [intentId, userId, amount, vehicleRef || null, description || null]
+      [
+        intentId,
+        userId,
+        amount,
+        vehicleRef || null,
+        description || null,
+        rentalStartDate || null,
+        rentalEndDate || null,
+        rentalDays || null,
+        withDriver === true,
+      ]
     );
     return result.rows[0];
   }
@@ -24,6 +35,22 @@ class RentalPaymentIntent {
       [invoiceNumber]
     );
     return result.rows[0];
+  }
+
+  static async hasOverlappingBooking(vehicleRef, startDate, endDate, excludeIntentId = null) {
+    const result = await pool.query(
+      `SELECT 1 FROM rental_payment_intents
+       WHERE vehicle_ref = $1
+         AND status IN ('PENDING', 'COMPLETED')
+         AND rental_start_date IS NOT NULL
+         AND rental_end_date IS NOT NULL
+         AND rental_start_date <= $3::date
+         AND rental_end_date >= $2::date
+         AND ($4::varchar IS NULL OR intent_id <> $4)
+       LIMIT 1`,
+      [vehicleRef, startDate, endDate, excludeIntentId]
+    );
+    return result.rowCount > 0;
   }
 
   static async setInvoiceNumber(intentId, invoiceNumber) {
@@ -68,6 +95,10 @@ class RentalPaymentIntent {
       invoiceNumber: row.invoice_number,
       vehicleRef: row.vehicle_ref,
       description: row.description,
+      rentalStartDate: row.rental_start_date,
+      rentalEndDate: row.rental_end_date,
+      rentalDays: row.rental_days != null ? Number(row.rental_days) : null,
+      withDriver: row.with_driver === true,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       vehicle: row.make

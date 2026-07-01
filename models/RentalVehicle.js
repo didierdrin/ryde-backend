@@ -21,22 +21,66 @@ class RentalVehicle {
       seats: row.seats != null ? Number(row.seats) : null,
       imageUrl: row.image_url,
       description: row.description,
-      isAvailable: row.is_available,
+      isAvailable: row.is_available === true,
+      rentedFrom: row.rented_from || null,
+      rentedUntil: row.rented_until || null,
       createdAt: row.created_at,
     };
   }
 
-  static async findAll({ availableOnly = true } = {}) {
-    const where = availableOnly ? 'WHERE is_available = TRUE' : '';
+  /** Keep is_available in sync with active completed/pending bookings. */
+  static async syncAvailability() {
+    await pool.query(`
+      UPDATE rental_vehicles rv
+      SET is_available = NOT EXISTS (
+        SELECT 1 FROM rental_payment_intents ri
+        WHERE ri.vehicle_ref = rv.rental_id
+          AND ri.status IN ('PENDING', 'COMPLETED')
+          AND ri.rental_end_date IS NOT NULL
+          AND ri.rental_end_date >= CURRENT_DATE
+      ),
+      updated_at = CURRENT_TIMESTAMP
+    `);
+  }
+
+  static async findAll() {
+    await RentalVehicle.syncAvailability();
     const result = await pool.query(
-      `SELECT * FROM rental_vehicles ${where} ORDER BY created_at DESC`
+      `SELECT rv.*,
+        active.rental_start_date AS rented_from,
+        active.rental_end_date AS rented_until
+       FROM rental_vehicles rv
+       LEFT JOIN LATERAL (
+         SELECT ri.rental_start_date, ri.rental_end_date
+         FROM rental_payment_intents ri
+         WHERE ri.vehicle_ref = rv.rental_id
+           AND ri.status IN ('PENDING', 'COMPLETED')
+           AND ri.rental_end_date >= CURRENT_DATE
+         ORDER BY ri.rental_end_date DESC
+         LIMIT 1
+       ) active ON true
+       ORDER BY rv.created_at DESC`
     );
     return result.rows.map(RentalVehicle.format);
   }
 
   static async findById(rentalId) {
+    await RentalVehicle.syncAvailability();
     const result = await pool.query(
-      'SELECT * FROM rental_vehicles WHERE rental_id = $1',
+      `SELECT rv.*,
+        active.rental_start_date AS rented_from,
+        active.rental_end_date AS rented_until
+       FROM rental_vehicles rv
+       LEFT JOIN LATERAL (
+         SELECT ri.rental_start_date, ri.rental_end_date
+         FROM rental_payment_intents ri
+         WHERE ri.vehicle_ref = rv.rental_id
+           AND ri.status IN ('PENDING', 'COMPLETED')
+           AND ri.rental_end_date >= CURRENT_DATE
+         ORDER BY ri.rental_end_date DESC
+         LIMIT 1
+       ) active ON true
+       WHERE rv.rental_id = $1`,
       [rentalId]
     );
     return RentalVehicle.format(result.rows[0]);

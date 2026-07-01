@@ -155,6 +155,7 @@ router.post('/create-invoice-for-amount', authenticateToken, paymentController.c
 router.get('/rental-intent/:intentId', authenticateToken, paymentController.getRentalIntent);
 router.get('/rental-history', authenticateToken, paymentController.getRentalHistory);
 router.post('/rental-intent/:intentId/acknowledge', authenticateToken, paymentController.acknowledgeRentalPayment);
+router.post('/rental-intent/:intentId/cancel', authenticateToken, paymentController.cancelRentalIntent);
 
 /**
  * @swagger

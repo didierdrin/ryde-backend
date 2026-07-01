@@ -2,8 +2,7 @@ const RentalVehicle = require('../models/RentalVehicle');
 
 exports.listRentals = async (req, res) => {
   try {
-    const availableOnly = req.query.all !== 'true' || req.user?.userType !== 'ADMIN';
-    const vehicles = await RentalVehicle.findAll({ availableOnly });
+    const vehicles = await RentalVehicle.findAll();
     res.json({ vehicles });
   } catch (error) {
     console.error('List rentals error:', error);

@@ -23,6 +23,7 @@ async function runMigrations(options = {}) {
       '006_rental_vehicle_details.sql',
       '007_trips_updated_at.sql',
       '008_seed_auction_listings.sql',
+      '009_rental_period.sql',
     ];
 
     await client.query('BEGIN');

@@ -7,11 +7,27 @@ const { createInvoicePayload } = require('../services/irembopayService');
 
 async function completeRentalIntent(intent) {
   if (!intent) return;
-  if (intent.status === 'COMPLETED') return;
-  await RentalPaymentIntent.markCompleted(intent.intent_id);
+  if (intent.status !== 'COMPLETED') {
+    await RentalPaymentIntent.markCompleted(intent.intent_id);
+  }
   if (intent.vehicle_ref) {
     await RentalVehicle.update(intent.vehicle_ref, { isAvailable: false });
+    await RentalVehicle.syncAvailability();
   }
+}
+
+function parseDateOnly(value) {
+  if (!value) return null;
+  const d = new Date(String(value).slice(0, 10));
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function rentalDaysInclusive(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  const diff = Math.round((end - start) / (24 * 60 * 60 * 1000));
+  return diff + 1;
 }
 
 function buildCheckoutUrl(req, invoiceNumber) {
@@ -120,8 +136,60 @@ exports.createInvoice = async (req, res) => {
  */
 exports.createInvoiceForAmount = async (req, res) => {
   try {
-    const { amount: amountParam, address, vehicleRef } = req.body;
-    const amount = Number(amountParam);
+    const {
+      amount: amountParam,
+      address,
+      vehicleRef,
+      rentalStartDate,
+      rentalEndDate,
+      withDriver,
+    } = req.body;
+
+    let amount = Number(amountParam);
+    let rentalStart = parseDateOnly(rentalStartDate);
+    let rentalEnd = parseDateOnly(rentalEndDate);
+    let rentalDays = null;
+    let description = address ? `Rental — ${String(address).trim()}` : 'Vehicle rental';
+
+    if (vehicleRef) {
+      const vehicle = await RentalVehicle.findById(String(vehicleRef));
+      if (!vehicle) {
+        return res.status(404).json({ error: 'Rental vehicle not found' });
+      }
+      if (!rentalStart || !rentalEnd) {
+        return res.status(400).json({ error: 'rentalStartDate and rentalEndDate are required' });
+      }
+      if (rentalEnd < rentalStart) {
+        return res.status(400).json({ error: 'Rental end date must be on or after start date' });
+      }
+      rentalDays = rentalDaysInclusive(rentalStart, rentalEnd);
+      if (rentalDays < 1) {
+        return res.status(400).json({ error: 'Rental must be at least 1 day' });
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      if (rentalEnd < today) {
+        return res.status(400).json({ error: 'Rental end date cannot be in the past' });
+      }
+
+      const overlap = await RentalPaymentIntent.hasOverlappingBooking(
+        String(vehicleRef),
+        rentalStart,
+        rentalEnd
+      );
+      if (overlap) {
+        return res.status(409).json({
+          error: 'This vehicle is already booked for the selected period. Choose different dates.',
+        });
+      }
+
+      const rate = withDriver
+        ? (vehicle.dailyRateWithDriver ?? vehicle.dailyRate)
+        : (vehicle.dailyRateWithoutDriver ?? vehicle.dailyRate);
+      amount = Number(rate) * rentalDays;
+      description = `Rental ${vehicle.make} ${vehicle.model} (${rentalStart} to ${rentalEnd})`;
+    }
+
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'Valid amount is required' });
     }
@@ -139,7 +207,11 @@ exports.createInvoiceForAmount = async (req, res) => {
     const intent = await RentalPaymentIntent.create(req.user.userId, {
       amount,
       vehicleRef: vehicleRef ? String(vehicleRef) : null,
-      description: address ? `Rental — ${String(address).trim()}` : 'Vehicle rental',
+      description,
+      rentalStartDate: rentalStart,
+      rentalEndDate: rentalEnd,
+      rentalDays,
+      withDriver: withDriver === true,
     });
 
     const { invoiceNumber } = await createInvoicePayload({
@@ -156,6 +228,10 @@ exports.createInvoiceForAmount = async (req, res) => {
     res.json({
       invoiceNumber,
       intentId: intent.intent_id,
+      amount,
+      rentalDays,
+      rentalStartDate: rentalStart,
+      rentalEndDate: rentalEnd,
       ...invoicePaymentMeta(req, invoiceNumber),
     });
   } catch (error) {
@@ -256,6 +332,10 @@ exports.getRentalIntent = async (req, res) => {
         status: row.status,
         invoiceNumber: row.invoice_number,
         vehicleRef: row.vehicle_ref,
+        rentalStartDate: row.rental_start_date,
+        rentalEndDate: row.rental_end_date,
+        rentalDays: row.rental_days,
+        withDriver: row.with_driver,
       },
     });
   } catch (error) {
@@ -295,6 +375,24 @@ exports.acknowledgeRentalPayment = async (req, res) => {
   } catch (error) {
     console.error('acknowledgeRentalPayment error:', error);
     res.status(500).json({ error: 'Failed to confirm rental', details: error.message });
+  }
+};
+
+/** Release vehicle when checkout is cancelled before payment completes. */
+exports.cancelRentalIntent = async (req, res) => {
+  try {
+    const row = await RentalPaymentIntent.findByIntentId(req.params.intentId);
+    if (!row || row.user_id !== req.user.userId) {
+      return res.status(404).json({ error: 'Intent not found' });
+    }
+    if (row.status === 'PENDING') {
+      await RentalPaymentIntent.markFailed(row.intent_id);
+      await RentalVehicle.syncAvailability();
+    }
+    res.json({ message: 'Rental intent cancelled', intentId: row.intent_id });
+  } catch (error) {
+    console.error('cancelRentalIntent error:', error);
+    res.status(500).json({ error: 'Failed to cancel rental intent', details: error.message });
   }
 };
 
